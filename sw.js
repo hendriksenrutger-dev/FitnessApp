@@ -1,7 +1,12 @@
-const CACHE = 'fitapp-v20';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
+const CACHE = 'fitapp-v21';
+const ASSETS = [
+  '/FitnessApp/',
+  '/FitnessApp/index.html',
+  '/FitnessApp/manifest.json',
+  '/FitnessApp/icon.svg'
+];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => {

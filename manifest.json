@@ -2,14 +2,15 @@
   "name": "FitApp",
   "short_name": "FitApp",
   "description": "Jouw persoonlijke fitness trainer",
-  "start_url": "/index.html",
+  "start_url": "/FitnessApp/",
+  "scope": "/FitnessApp/",
   "display": "standalone",
   "background_color": "#0D0D0D",
   "theme_color": "#0D0D0D",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "/FitnessApp/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }
