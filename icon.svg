@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Achtergrond -->
+  <rect width="512" height="512" rx="112" fill="#0D0D0D"/>
+
+  <!-- Stang (bar) -->
+  <rect x="80" y="234" width="352" height="44" rx="22" fill="#2A2A2A"/>
+  <rect x="80" y="234" width="352" height="18" rx="9" fill="#3A3A3A"/>
+
+  <!-- Linker grote schijf -->
+  <rect x="60" y="154" width="72" height="204" rx="20" fill="#FF6B35"/>
+  <rect x="60" y="154" width="72" height="80" rx="20" fill="#E05520"/>
+
+  <!-- Linker kleine schijf -->
+  <rect x="136" y="180" width="44" height="152" rx="14" fill="#CC4A1A"/>
+  <rect x="136" y="180" width="44" height="60" rx="14" fill="#B83D10"/>
+
+  <!-- Rechter kleine schijf -->
+  <rect x="332" y="180" width="44" height="152" rx="14" fill="#CC4A1A"/>
+  <rect x="332" y="180" width="44" height="60" rx="14" fill="#B83D10"/>
+
+  <!-- Rechter grote schijf -->
+  <rect x="380" y="154" width="72" height="204" rx="20" fill="#FF6B35"/>
+  <rect x="380" y="154" width="72" height="80" rx="20" fill="#E05520"/>
+
+  <!-- Glans op de stang -->
+  <rect x="80" y="234" width="352" height="10" rx="5" fill="#ffffff" opacity="0.07"/>
+
+  <!-- Glans op linker grote schijf -->
+  <rect x="60" y="154" width="72" height="30" rx="15" fill="#ffffff" opacity="0.08"/>
+
+  <!-- Glans op rechter grote schijf -->
+  <rect x="380" y="154" width="72" height="30" rx="15" fill="#ffffff" opacity="0.08"/>
+</svg>
