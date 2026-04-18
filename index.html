@@ -289,10 +289,17 @@
       <div id="s-history"></div>
     </div>
     <div id="stab-weight-content" class="hidden">
-      <div style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:16px">
-        <div style="font-size:13px;color:#666;margin-bottom:14px">Gewicht wordt automatisch bijgehouden via je profiel.</div>
+      <div style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:14px">
+        <div style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">⚖️ Gewicht</div>
+        <div style="font-size:13px;color:#666;margin-bottom:10px">Wordt bijgehouden via je profiel.</div>
         <div style="background:#0D0D0D;border-radius:10px;padding:4px"><canvas id="weight-canvas" style="width:100%;display:block"></canvas></div>
         <div style="display:flex;justify-content:space-around;margin-top:12px" id="weight-stats"></div>
+      </div>
+      <div style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:14px">
+        <div style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">📏 Tailleomtrek</div>
+        <div style="font-size:13px;color:#666;margin-bottom:10px">Wordt bijgehouden via je profiel.</div>
+        <div style="background:#0D0D0D;border-radius:10px;padding:4px"><canvas id="waist-canvas" style="width:100%;display:block"></canvas></div>
+        <div style="display:flex;justify-content:space-around;margin-top:12px" id="waist-stats"></div>
       </div>
     </div>
     <div id="stab-exercises-content" class="hidden">
@@ -330,6 +337,10 @@
     <div style="display:flex;gap:10px">
       <div style="flex:1"><label class="form-label">Lengte (cm)</label><input class="form-input" id="p-height" type="number" min="100" max="250" placeholder="bijv. 182" oninput="updateBMI()"/></div>
       <div style="flex:1"><label class="form-label">Gewicht (kg)</label><input class="form-input" id="p-weight" type="number" min="30" max="300" placeholder="bijv. 80" oninput="updateBMI()"/></div>
+      <div style="flex:1"><label class="form-label">Leeftijd</label><input class="form-input" id="p-age" type="number" min="10" max="100" placeholder="bijv. 35" oninput="updateBMI()"/></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label class="form-label">Tailleomtrek (cm)</label><input class="form-input" id="p-waist" type="number" min="40" max="200" placeholder="bijv. 90" oninput="updateWaist()"/></div>
     </div>
     <div id="bmi-card" class="info-card" style="display:none;margin-bottom:18px">
       <div class="info-lbl">BMI</div>
@@ -345,6 +356,14 @@
         <span style="font-size:10px;color:#555">Normaal</span>
         <span style="font-size:10px;color:#555">Overgewicht</span>
       </div>
+    </div>
+    <div id="bmr-card" class="info-card" style="display:none;margin-bottom:18px">
+      <div class="info-lbl">Dagelijks rustmetabolisme (BMR)</div>
+      <div style="display:flex;align-items:baseline;gap:10px;margin-top:4px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#3B9EFF" id="bmr-val">—</div>
+        <div style="font-size:14px;color:#888">kcal/dag</div>
+      </div>
+      <div style="font-size:12px;color:#555;margin-top:6px" id="bmr-note">Calorieën die je verbrandt zonder te bewegen</div>
     </div>
     <div class="info-card"><div class="info-lbl">App versie</div><div style="font-size:15px">FitApp v2.1</div></div>
     <label class="form-label">Spotify trainingsplaylist</label>
@@ -1036,13 +1055,52 @@ function renderCardioLog(){
   }).join('');
 }
 
-// ── STATS ─────────────────────────────────────────────────
+const getWaistLog=()=>JSON.parse(localStorage.getItem('waistLog')||'[]');
+const saveWaistLog=l=>localStorage.setItem('waistLog',JSON.stringify(l));
+
+function updateWaist(){
+  const w=parseFloat(document.getElementById('p-waist').value);
+  if(!w||w<40||w>200) return;
+  localStorage.setItem('userWaist',w);
+  const log=getWaistLog(), today=new Date().toLocaleDateString('nl-NL');
+  const idx=log.findIndex(e=>e.date===today);
+  if(idx>-1) log[idx].cm=w; else log.push({date:today,cm:w});
+  saveWaistLog(log);
+}
+
+function renderWaistChart(){
+  const log=getWaistLog(), canvas=document.getElementById('waist-canvas');
+  if(!canvas) return;
+  const W=canvas.parentElement.clientWidth-8||300, H=120;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(log.length===0){
+    ctx.fillStyle='#555';ctx.font='13px DM Sans';ctx.textAlign='center';
+    ctx.fillText('Vul je tailleomtrek in bij Profiel',W/2,H/2);
+    document.getElementById('waist-stats').innerHTML='';
+    return;
+  }
+  const cms=log.map(e=>e.cm);
+  const latest=cms[cms.length-1], start=cms[0];
+  const diff=Math.round((latest-start)*10)/10, best=Math.min(...cms);
+  document.getElementById('waist-stats').innerHTML=`
+    <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#3B9EFF">${latest} cm</div><div style="font-size:11px;color:#666">Huidig</div></div>
+    <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#3B9EFF">${best} cm</div><div style="font-size:11px;color:#666">Laagste</div></div>
+    <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${diff<=0?'#4CAF50':'#FF3B3B'}">${diff>0?'+':''}${diff} cm</div><div style="font-size:11px;color:#666">Verschil</div></div>`;
+  if(log.length<2){
+    ctx.fillStyle='#3B9EFF';ctx.font='13px DM Sans';ctx.textAlign='center';
+    ctx.fillText('Log meer metingen voor grafiek',W/2,H/2);
+    return;
+  }
+  drawLineChart(ctx,W,H,cms,log.map(e=>e.date),'#3B9EFF');
+}
 function statsTab(tab){
   ['sessions','weight','exercises'].forEach(t=>{
     document.getElementById('stab-'+t+'-content').classList.toggle('hidden',t!==tab);
     document.getElementById('stab-'+t).classList.toggle('active',t===tab);
   });
-  if(tab==='weight') setTimeout(renderWeightChart,50);
+  if(tab==='weight') setTimeout(()=>{renderWeightChart();renderWaistChart();},50);
 }
 
 function renderStats(){
@@ -1156,11 +1214,21 @@ function loadProfile(){
   document.getElementById('p-name').value=localStorage.getItem('userName')||'';
   document.getElementById('p-height').value=localStorage.getItem('userHeight')||'';
   document.getElementById('p-weight').value=localStorage.getItem('userWeight')||'';
+  document.getElementById('p-waist').value=localStorage.getItem('userWaist')||'';
   document.getElementById('p-spotify').value=localStorage.getItem('spotifyPlaylist')||'';
   loadGender(); updateBMI();
 }
+function loadProfile(){
+  document.getElementById('p-name').value=localStorage.getItem('userName')||'';
+  document.getElementById('p-height').value=localStorage.getItem('userHeight')||'';
+  document.getElementById('p-weight').value=localStorage.getItem('userWeight')||'';
+  document.getElementById('p-age').value=localStorage.getItem('userAge')||'';
+  document.getElementById('p-waist').value=localStorage.getItem('userWaist')||'';
+  document.getElementById('p-spotify').value=localStorage.getItem('spotifyPlaylist')||'';
+  loadGender(); updateBMI(); updateWaist();
+}
 function setGender(g){
-  localStorage.setItem('userGender',g); loadGender();
+  localStorage.setItem('userGender',g); loadGender(); updateBMI();
 }
 function loadGender(){
   const g=localStorage.getItem('userGender')||'';
@@ -1173,24 +1241,21 @@ function loadGender(){
 function updateBMI(){
   const h=parseFloat(document.getElementById('p-height').value);
   const w=parseFloat(document.getElementById('p-weight').value);
+  const a=parseFloat(document.getElementById('p-age').value);
+  const g=localStorage.getItem('userGender')||'m';
   if(h) localStorage.setItem('userHeight',h);
+  if(a) localStorage.setItem('userAge',a);
   if(w){
     localStorage.setItem('userWeight',w);
-    // voeg toe aan gewichtsgrafiek als er nog geen meting is van vandaag
     const log=getWLog();
     const today=new Date().toLocaleDateString('nl-NL');
-    if(!log.find(e=>e.date===today)){
-      log.push({date:today,kg:w});
-      saveWLog(log);
-    } else {
-      // update bestaande meting van vandaag
-      const idx=log.findIndex(e=>e.date===today);
-      log[idx].kg=w;
-      saveWLog(log);
-    }
+    const idx=log.findIndex(e=>e.date===today);
+    if(idx>-1) log[idx].kg=w; else log.push({date:today,kg:w});
+    saveWLog(log);
   }
   const card=document.getElementById('bmi-card');
-  if(!h||!w||h<100||w<20){card.style.display='none';return;}
+  const bmrCard=document.getElementById('bmr-card');
+  if(!h||!w||h<100||w<20){card.style.display='none';bmrCard.style.display='none';return;}
   card.style.display='block';
   const bmi=w/((h/100)**2), br=Math.round(bmi*10)/10;
   document.getElementById('bmi-val').textContent=br;
@@ -1203,6 +1268,17 @@ function updateBMI(){
   document.getElementById('bmi-cat').style.color=color;
   document.getElementById('bmi-bar').style.width=pct+'%';
   document.getElementById('bmi-bar').style.background=color;
+  // BMR via Harris-Benedict
+  if(a&&a>0){
+    let bmr=0;
+    if(g==='m') bmr=Math.round(88.36+(13.4*w)+(4.8*h)-(5.7*a));
+    else bmr=Math.round(447.6+(9.2*w)+(3.1*h)-(4.3*a));
+    bmrCard.style.display='block';
+    document.getElementById('bmr-val').textContent=bmr;
+    document.getElementById('bmr-note').textContent=`Licht actief: ~${Math.round(bmr*1.375)} kcal · Matig actief: ~${Math.round(bmr*1.55)} kcal`;
+  } else {
+    bmrCard.style.display='none';
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────
