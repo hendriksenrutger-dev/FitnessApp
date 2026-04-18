@@ -230,10 +230,21 @@
       <div><div class="page-sub">Jouw voortgang</div><div class="page-title">Statistieken</div></div>
       <span style="font-size:32px">📊</span>
     </div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" id="s-sessions">0</div><div class="stat-label">Sessies</div></div>
-      <div class="stat-card"><div class="stat-val" id="s-cal">0</div><div class="stat-label">Calorieën</div></div>
+
+    <!-- Mooie sessie/calorie kaarten -->
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <div style="flex:1;background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid #2a2a2a">
+        <div style="font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Sessies</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#FF6B35;line-height:1" id="s-sessions">0</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">trainingen voltooid</div>
+      </div>
+      <div style="flex:1;background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid #2a2a2a">
+        <div style="font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Calorieën</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#FF6B35;line-height:1" id="s-cal">0</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">kcal verbrand totaal</div>
+      </div>
     </div>
+
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="stats-tab active" id="stab-sessions" onclick="statsTab('sessions')">📅 Sessies</button>
       <button class="stats-tab" id="stab-weight" onclick="statsTab('weight')">⚖️ Gewicht</button>
@@ -247,17 +258,13 @@
     </div>
     <div id="stab-weight-content" class="hidden">
       <div style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <input id="weight-input" type="number" min="30" max="300" step="0.1" placeholder="bijv. 80.5" style="flex:1;background:#0D0D0D;border:1px solid #333;border-radius:10px;padding:10px 14px;color:#fff;font-size:18px;font-family:'Bebas Neue',sans-serif;outline:none"/>
-          <span style="color:#666;font-size:14px">kg</span>
-          <button onclick="logWeight()" style="background:#FF6B35;border:none;border-radius:10px;padding:10px 16px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;cursor:pointer">+ Log</button>
-        </div>
+        <div style="font-size:13px;color:#666;margin-bottom:14px">Gewicht wordt automatisch bijgehouden via je profiel.</div>
         <div style="background:#0D0D0D;border-radius:10px;padding:4px"><canvas id="weight-canvas" style="width:100%;display:block"></canvas></div>
         <div style="display:flex;justify-content:space-around;margin-top:12px" id="weight-stats"></div>
       </div>
     </div>
     <div id="stab-exercises-content" class="hidden">
-      <div style="font-size:12px;color:#555;margin-bottom:10px">Tik op een oefening voor het gewichtsverloop</div>
+      <div style="font-size:13px;color:#555;margin-bottom:10px">Tik op een oefening voor het gewichtsverloop</div>
       <div id="s-all"></div>
     </div>
   </div>
