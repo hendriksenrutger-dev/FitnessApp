@@ -1,4 +1,4 @@
-const CACHE = 'fitapp-v21';
+const CACHE = 'fitapp-v22';
 const ASSETS = [
   '/FitnessApp/',
   '/FitnessApp/index.html',
