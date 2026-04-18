@@ -51,7 +51,7 @@
     .w-sets{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#FF6B35}
     .e-card{background:#1A1A1A;border:1px solid #2a2a2a;border-radius:16px;padding:11px 12px;display:flex;align-items:center;gap:9px;touch-action:none}
     .e-card.dragging{opacity:.5;transform:scale(.97)}
-    .drag-handle{font-size:20px;color:#444;cursor:grab;flex-shrink:0;padding:4px 2px;touch-action:none;user-select:none}
+    .drag-handle{font-size:22px;color:#555;cursor:grab;flex-shrink:0;padding:8px 6px;touch-action:none;user-select:none;-webkit-user-select:none}
     .del-btn{width:36px;height:36px;border-radius:10px;background:#FF3B3B18;border:1px solid #FF3B3B44;color:#FF3B3B;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
     .edit-btn-sm{background:#FF6B3522;border:1px solid #FF6B3566;border-radius:10px;color:#FF6B35;padding:5px 11px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0}
     .add-card{background:#1A1A1A;border:1px dashed #333;border-radius:16px;padding:16px;width:100%;color:#555;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent}
@@ -325,7 +325,7 @@
         <span style="font-size:10px;color:#555">Overgewicht</span>
       </div>
     </div>
-    <div class="info-card"><div class="info-lbl">App versie</div><div style="font-size:15px">FitApp v18.0</div></div>
+    <div class="info-card"><div class="info-lbl">App versie</div><div style="font-size:15px">FitApp v2.1</div></div>
     <div class="info-card"><div class="info-lbl">Data opslag</div><div style="font-size:15px">Alleen op dit apparaat</div><div style="font-size:12px;color:#555;margin-top:3px">Jouw data wordt nooit gedeeld</div></div>
     <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">🗑️ Alle data wissen</button>
   </div>
@@ -628,47 +628,53 @@ function removeFromSchema(id){
 // ── DRAG ─────────────────────────────────────────────────
 function initDrag(){
   const list=document.getElementById('workout-list');
-  let dragEl=null, startY=0, longPressTimer=null, isDragging=false;
+  let dragEl=null, startY=0, isDragging=false, longPressTimer=null;
   const cards=()=>Array.from(list.querySelectorAll('.e-card'));
 
-  list.addEventListener('touchstart',e=>{
-    const h=e.target.closest('[data-drag]'); if(!h) return;
-    const card=h.closest('.e-card'); if(!card) return;
-    longPressTimer=setTimeout(()=>{
-      isDragging=true; dragEl=card;
-      startY=e.touches[0].clientY;
-      dragEl.classList.add('dragging');
-      if(navigator.vibrate) navigator.vibrate(40);
-    },300);
-  },{passive:true});
+  // Alleen het handvat krijgt touch events
+  function attachHandle(card){
+    const handle=card.querySelector('[data-drag]');
+    if(!handle) return;
 
-  list.addEventListener('touchmove',e=>{
-    if(!isDragging||!dragEl){clearTimeout(longPressTimer);return;}
-    e.preventDefault();
-    const y=e.touches[0].clientY;
-    dragEl.style.transform=`translateY(${y-startY}px)`;
-    const mid=dragEl.getBoundingClientRect().top+dragEl.getBoundingClientRect().height/2;
-    cards().forEach(c=>{
-      if(c===dragEl) return;
-      const r=c.getBoundingClientRect();
-      if(mid>r.top&&mid<r.bottom){
-        if(cards().indexOf(c)<cards().indexOf(dragEl)) list.insertBefore(dragEl,c);
-        else list.insertBefore(dragEl,c.nextSibling);
-        dragEl.style.transform=''; startY=y;
-      }
+    handle.addEventListener('touchstart',e=>{
+      e.stopPropagation();
+      longPressTimer=setTimeout(()=>{
+        isDragging=true; dragEl=card;
+        startY=e.touches[0].clientY;
+        dragEl.classList.add('dragging');
+        if(navigator.vibrate) navigator.vibrate(40);
+      },250);
+    },{passive:true});
+
+    handle.addEventListener('touchmove',e=>{
+      if(!isDragging||!dragEl){clearTimeout(longPressTimer);return;}
+      e.preventDefault(); e.stopPropagation();
+      const y=e.touches[0].clientY;
+      dragEl.style.transform=`translateY(${y-startY}px)`;
+      const mid=dragEl.getBoundingClientRect().top+dragEl.getBoundingClientRect().height/2;
+      cards().forEach(c=>{
+        if(c===dragEl) return;
+        const r=c.getBoundingClientRect();
+        if(mid>r.top&&mid<r.bottom){
+          if(cards().indexOf(c)<cards().indexOf(dragEl)) list.insertBefore(dragEl,c);
+          else list.insertBefore(dragEl,c.nextSibling);
+          dragEl.style.transform=''; startY=y;
+        }
+      });
+    },{passive:false});
+
+    handle.addEventListener('touchend',()=>{
+      clearTimeout(longPressTimer);
+      if(!isDragging||!dragEl){isDragging=false;dragEl=null;return;}
+      dragEl.classList.remove('dragging'); dragEl.style.transform='';
+      const order=cards().map(c=>parseInt(c.dataset.id));
+      const schemas=getSch(), activeId=getActId();
+      saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:order}:s));
+      dragEl=null; isDragging=false;
     });
-  },{passive:false});
+  }
 
-  const end=()=>{
-    clearTimeout(longPressTimer);
-    if(!isDragging||!dragEl){isDragging=false;dragEl=null;return;}
-    dragEl.classList.remove('dragging'); dragEl.style.transform='';
-    const order=cards().map(c=>parseInt(c.dataset.id));
-    const schemas=getSch(), activeId=getActId();
-    saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:order}:s));
-    dragEl=null; isDragging=false;
-  };
-  list.addEventListener('touchend',end); list.addEventListener('touchcancel',end);
+  cards().forEach(c=>attachHandle(c));
 }
 
 // ── SCHEMA FORM ───────────────────────────────────────────
