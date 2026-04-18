@@ -115,6 +115,7 @@
       <div><div class="page-sub" id="home-greeting">Goedemorgen 👋</div><div class="page-title" id="home-name">Laten we trainen!</div></div>
     </div>
     <div class="schema-tabs" id="schema-tabs"></div>
+    <button onclick="openAddSchema()" style="width:100%;background:transparent;border:1px dashed #333;border-radius:12px;padding:8px;color:#555;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:14px">＋ Schema toevoegen</button>
     <!-- Cardio -->
     <div id="cardio-section" class="hidden">
       <div class="sec-hdr"><div class="sec-title">Cardio</div></div>
@@ -192,6 +193,16 @@
         <button class="big-btn" onclick="nav('home')">Terug naar overzicht</button>
       </div>
     </div>
+  </div>
+
+  <!-- EXERCISE PICKER -->
+  <div id="S-picker" class="screen hidden">
+    <button class="back-btn" onclick="nav('home')">← Annuleren</button>
+    <div class="page-title" style="margin-bottom:14px">Oefening toevoegen</div>
+    <input id="picker-search" class="form-input" type="text" placeholder="Zoek oefening..." oninput="filterPicker()" style="margin-bottom:14px"/>
+    <div id="picker-list"></div>
+    <div style="height:1px;background:#222;margin:8px 0 12px"></div>
+    <button onclick="openAddEx()" style="background:#FF6B3510;border:1px dashed #FF6B3566;border-radius:14px;padding:14px;width:100%;color:#FF6B35;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif">＋ Zelf toevoegen</button>
   </div>
 
   <!-- EDIT EXERCISE -->
@@ -378,7 +389,7 @@ let editMode=false, editingExId=null, editingSchemaId=null, selEmoji='🏋️';
 let activeWorkout=null, curSet=1, phase='ready', curWeight=0;
 let timerVal=0, timerInt=null;
 let activeCardioType='hardlopen';
-const SCREENS=['home','workout','edit','schema','stats','chart','profile'];
+const SCREENS=['home','workout','edit','picker','schema','stats','chart','profile'];
 
 // ── SVG ICOONTJES ─────────────────────────────────────────
 const MUSCLE_COLOR={
@@ -541,8 +552,7 @@ function renderHome(){
   // tabs
   document.getElementById('schema-tabs').innerHTML=
     schemas.map(s=>`<button class="schema-tab ${s.id===activeId?'active':''}" onclick="switchSchema(${s.id})">${s.name}</button>`).join('')
-    +`<button class="schema-tab ${isCardio?'active':''}" onclick="switchSchema('cardio')">🏃 Cardio</button>`
-    +`<button class="schema-tab add-tab" onclick="openAddSchema()">＋ Schema</button>`;
+    +`<button class="schema-tab ${isCardio?'active':''}" onclick="switchSchema('cardio')">🏃 Cardio</button>`;
 
   if(isCardio){ renderCardioLog(); calcCardio(); return; }
 
@@ -570,7 +580,7 @@ function renderHome(){
         <button class="edit-btn-sm" onclick="openEditEx(${w.id})">✏️</button>
       </div>`;
     }).join('')
-    +`<button class="add-card" onclick="openAddEx()"><span style="font-size:20px">＋</span> Oefening toevoegen</button>`
+    +`<button class="add-card" onclick="openPicker()"><span style="font-size:20px">＋</span> Oefening toevoegen</button>`
     +`<button class="add-card" style="margin-top:6px;border-color:#FF6B3544;color:#FF6B3588" onclick="openEditSchema(${schema.id})">⚙️ Schema bewerken / verwijderen</button>`;
     initDrag();
   } else {
@@ -684,6 +694,115 @@ function deleteSchema(){
   if(!confirm('Schema verwijderen?')) return;
   const updated=schemas.filter(s=>s.id!==editingSchemaIdForm);
   saveSch(updated); setActId(updated[0].id); nav('home');
+}
+
+// ── OEFENINGEN DATABASE ───────────────────────────────────
+const EX_DB=[
+  {name:'Lat Pulldown',       muscle:'Rug',              sets:3,reps:10,rest:90,color:'#3B9EFF'},
+  {name:'Seated Row',         muscle:'Rug & Biceps',     sets:3,reps:10,rest:90,color:'#3B9EFF'},
+  {name:'Pull-up',            muscle:'Rug',              sets:3,reps:8, rest:90,color:'#3B9EFF'},
+  {name:'Deadlift',           muscle:'Rug',              sets:4,reps:6, rest:120,color:'#3B9EFF'},
+  {name:'One-arm Dumbbell Row',muscle:'Rug & Biceps',   sets:3,reps:10,rest:90,color:'#3B9EFF'},
+  {name:'T-bar Row',          muscle:'Rug',              sets:3,reps:10,rest:90,color:'#3B9EFF'},
+  {name:'Face Pull',          muscle:'Rug',              sets:3,reps:15,rest:60,color:'#3B9EFF'},
+  {name:'Hyperextension',     muscle:'Rug',              sets:3,reps:12,rest:60,color:'#3B9EFF'},
+  {name:'Bench Press',        muscle:'Borst',            sets:4,reps:8, rest:90,color:'#FF6B35'},
+  {name:'Incline Bench Press',muscle:'Borst',            sets:3,reps:10,rest:90,color:'#FF6B35'},
+  {name:'Chest Press Machine',muscle:'Borst',            sets:3,reps:10,rest:90,color:'#FF6B35'},
+  {name:'Dumbbell Fly',       muscle:'Borst',            sets:3,reps:12,rest:60,color:'#FF6B35'},
+  {name:'Cable Fly',          muscle:'Borst',            sets:3,reps:12,rest:60,color:'#FF6B35'},
+  {name:'Push-up',            muscle:'Borst',            sets:3,reps:15,rest:60,color:'#FF6B35'},
+  {name:'Dip',                muscle:'Borst',            sets:3,reps:10,rest:90,color:'#FF6B35'},
+  {name:'Pec Deck',           muscle:'Borst',            sets:3,reps:12,rest:60,color:'#FF6B35'},
+  {name:'Shoulder Press',     muscle:'Schouders',        sets:4,reps:8, rest:90,color:'#A78BFA'},
+  {name:'Arnold Press',       muscle:'Schouders',        sets:4,reps:8, rest:90,color:'#A78BFA'},
+  {name:'Lateral Raise',      muscle:'Zijkant Schouders',sets:3,reps:12,rest:60,color:'#A78BFA'},
+  {name:'Front Raise',        muscle:'Schouders',        sets:3,reps:12,rest:60,color:'#A78BFA'},
+  {name:'Shrugs',             muscle:'Trapezius',        sets:3,reps:12,rest:60,color:'#4CAF50'},
+  {name:'Upright Row',        muscle:'Trapezius',        sets:3,reps:12,rest:60,color:'#4CAF50'},
+  {name:'Rear Delt Fly',      muscle:'Schouders',        sets:3,reps:15,rest:60,color:'#A78BFA'},
+  {name:'Bicep Curl',         muscle:'Biceps',           sets:3,reps:12,rest:60,color:'#F59E0B'},
+  {name:'Hammer Curl',        muscle:'Biceps',           sets:3,reps:12,rest:60,color:'#F59E0B'},
+  {name:'Preacher Curl',      muscle:'Biceps',           sets:3,reps:10,rest:60,color:'#F59E0B'},
+  {name:'Cable Curl',         muscle:'Biceps',           sets:3,reps:12,rest:60,color:'#F59E0B'},
+  {name:'Tricep Pushdown',    muscle:'Triceps',          sets:3,reps:12,rest:60,color:'#F59E0B'},
+  {name:'Skull Crusher',      muscle:'Triceps',          sets:3,reps:10,rest:60,color:'#F59E0B'},
+  {name:'Overhead Tricep Extension',muscle:'Triceps',    sets:3,reps:12,rest:60,color:'#F59E0B'},
+  {name:'Dip (Triceps)',      muscle:'Triceps',          sets:3,reps:10,rest:60,color:'#F59E0B'},
+  {name:'Squat',              muscle:'Benen',            sets:4,reps:8, rest:120,color:'#EC4899'},
+  {name:'Leg Press',          muscle:'Benen',            sets:4,reps:10,rest:90,color:'#EC4899'},
+  {name:'Lunges',             muscle:'Benen',            sets:3,reps:12,rest:60,color:'#EC4899'},
+  {name:'Leg Extension',      muscle:'Benen',            sets:3,reps:12,rest:60,color:'#EC4899'},
+  {name:'Leg Curl',           muscle:'Benen & Billen',   sets:3,reps:12,rest:60,color:'#EC4899'},
+  {name:'Romanian Deadlift',  muscle:'Benen & Billen',   sets:3,reps:10,rest:90,color:'#EC4899'},
+  {name:'Calf Raise',         muscle:'Benen',            sets:4,reps:15,rest:45,color:'#EC4899'},
+  {name:'Hip Thrust',         muscle:'Benen & Billen',   sets:4,reps:10,rest:90,color:'#EC4899'},
+  {name:'Plank',              muscle:'Core',             sets:3,reps:30,rest:45,color:'#14B8A6'},
+  {name:'Crunch',             muscle:'Core',             sets:3,reps:20,rest:45,color:'#14B8A6'},
+  {name:'Sit-up',             muscle:'Core',             sets:3,reps:20,rest:45,color:'#14B8A6'},
+  {name:'Russian Twist',      muscle:'Core',             sets:3,reps:20,rest:45,color:'#14B8A6'},
+  {name:'Leg Raise',          muscle:'Core',             sets:3,reps:15,rest:45,color:'#14B8A6'},
+  {name:'Cable Crunch',       muscle:'Core',             sets:3,reps:15,rest:60,color:'#14B8A6'},
+];
+
+const MUSCLE_ORDER=['Rug','Rug & Biceps','Borst','Schouders','Zijkant Schouders','Trapezius','Biceps','Triceps','Benen','Benen & Billen','Core'];
+
+function openPicker(){
+  document.getElementById('picker-search').value='';
+  filterPicker();
+  nav('picker');
+}
+
+function filterPicker(){
+  const q=document.getElementById('picker-search').value.toLowerCase().trim();
+  const existing=getEx().map(e=>e.name.toLowerCase());
+  let items=EX_DB.filter(e=>!existing.includes(e.name.toLowerCase()));
+  const list=document.getElementById('picker-list');
+
+  if(q){
+    items=items.filter(e=>e.name.toLowerCase().includes(q)||e.muscle.toLowerCase().includes(q));
+    list.innerHTML=items.length===0
+      ?'<div style="color:#555;font-size:14px;padding:12px 0">Geen resultaten — gebruik "Zelf toevoegen" hieronder.</div>'
+      :items.map(e=>pickerRow(e)).join('');
+    return;
+  }
+
+  // groepeer per spiergroep
+  const grouped={};
+  items.forEach(e=>{
+    if(!grouped[e.muscle]) grouped[e.muscle]=[];
+    grouped[e.muscle].push(e);
+  });
+
+  list.innerHTML=MUSCLE_ORDER
+    .filter(m=>grouped[m]&&grouped[m].length>0)
+    .map(m=>`
+      <div style="color:${grouped[m][0].color};font-size:12px;text-transform:uppercase;letter-spacing:1px;padding:12px 0 8px;font-weight:500">${m}</div>
+      ${grouped[m].map(e=>pickerRow(e)).join('')}
+    `).join('');
+}
+
+function pickerRow(e){
+  return `<div onclick="addFromPicker(${JSON.stringify(e).replace(/"/g,'&quot;')})"
+    style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer">
+    <div style="width:10px;height:10px;border-radius:50%;background:${e.color};flex-shrink:0"></div>
+    <div style="flex:1">
+      <div style="color:#fff;font-size:15px;font-weight:500">${e.name}</div>
+      <div style="color:#666;font-size:12px;margin-top:2px">${e.muscle} · ${e.sets}×${e.reps}</div>
+    </div>
+    <div style="color:#FF6B35;font-size:20px">+</div>
+  </div>`;
+}
+
+function addFromPicker(e){
+  const exercises=getEx();
+  const newId=Date.now();
+  const weights=Array(e.sets).fill(0);
+  exercises.push({id:newId,name:e.name,muscle:e.muscle,sets:e.sets,reps:e.reps,rest:e.rest,weights,emoji:'🏋️'});
+  saveEx(exercises);
+  const schemas=getSch(), activeId=getActId();
+  if(activeId!=='cardio') saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s));
+  nav('home');
 }
 
 // ── EXERCISE FORM ─────────────────────────────────────────
