@@ -212,33 +212,15 @@
         <div class="done-title">Goed gedaan!</div>
         <div class="done-sub" id="done-cal">+45 calorieën verbrand</div>
 
-        <!-- Wat heb ik net gedaan -->
+        <!-- Wat heb ik net gedaan - per set -->
         <div style="background:#1A1A1A;border:1px solid #4CAF5044;border-radius:16px;padding:16px;margin-bottom:12px;width:100%;max-width:300px">
-          <div style="font-size:12px;color:#4CAF50;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">✓ Wat heb ik net gedaan?</div>
-          <div style="display:flex;gap:10px;margin-bottom:12px">
-            <div style="flex:1;text-align:center">
-              <div style="font-size:11px;color:#666;margin-bottom:6px">Sets</div>
-              <div style="display:flex;align-items:center;background:#0D0D0D;border-radius:10px;overflow:hidden">
-                <button onclick="adjustActual('sets',-1)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:6px 10px;cursor:pointer">−</button>
-                <div style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:#fff" id="actual-sets">3</div>
-                <button onclick="adjustActual('sets',1)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:6px 10px;cursor:pointer">+</button>
-              </div>
-            </div>
-            <div style="flex:1;text-align:center">
-              <div style="font-size:11px;color:#666;margin-bottom:6px">Reps</div>
-              <div style="display:flex;align-items:center;background:#0D0D0D;border-radius:10px;overflow:hidden">
-                <button onclick="adjustActual('reps',-1)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:6px 10px;cursor:pointer">−</button>
-                <div style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:#fff" id="actual-reps">10</div>
-                <button onclick="adjustActual('reps',1)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:6px 10px;cursor:pointer">+</button>
-              </div>
-            </div>
+          <div style="font-size:12px;color:#4CAF50;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">✓ Wat heb ik gedaan?</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <div style="width:44px;font-size:11px;color:#555"></div>
+            <div style="flex:1;font-size:11px;color:#666;text-align:center">Reps</div>
+            <div style="flex:1;font-size:11px;color:#666;text-align:center">Gewicht (kg)</div>
           </div>
-          <div style="font-size:11px;color:#666;margin-bottom:6px;text-align:center">Gewicht (kg)</div>
-          <div style="display:flex;align-items:center;background:#0D0D0D;border-radius:10px;overflow:hidden">
-            <button onclick="adjustActualWeight(-0.5)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:8px 14px;cursor:pointer">−</button>
-            <div style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#4CAF50" id="actual-weight">0 kg</div>
-            <button onclick="adjustActualWeight(0.5)" style="background:transparent;border:none;color:#4CAF50;font-size:20px;padding:8px 14px;cursor:pointer">+</button>
-          </div>
+          <div id="actual-sets-list"></div>
         </div>
 
         <!-- Volgende keer -->
@@ -1050,26 +1032,38 @@ function advance(){
   else{
     phase='done';
     const c=getDone();if(!c.includes(activeWorkout.id)){c.push(activeWorkout.id);saveDone(c);}
-    // initialiseer wat ik net heb gedaan (zelfde als ingesteld)
-    document.getElementById('actual-sets').textContent=activeWorkout.sets;
-    document.getElementById('actual-reps').textContent=activeWorkout.reps;
-    const avgW=Math.round(activeWorkout.weights.reduce((a,b)=>a+b,0)/activeWorkout.weights.length*10)/10;
-    document.getElementById('actual-weight').textContent=avgW+' kg';
-    // initialiseer volgende keer (zelfde als ingesteld)
+    // per-set invoervelden voor wat ik heb gedaan
+    const setsList=document.getElementById('actual-sets-list');
+    setsList.innerHTML=Array.from({length:activeWorkout.sets},(_,i)=>{
+      const w=activeWorkout.weights[i]||activeWorkout.weights[0]||0;
+      return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <div style="width:44px;font-size:12px;color:#666;font-weight:500">Set ${i+1}</div>
+        <div style="flex:1;display:flex;align-items:center;background:#0D0D0D;border-radius:8px;overflow:hidden">
+          <button onclick="adjSetVal('reps',${i},-1)" style="background:transparent;border:none;color:#4CAF50;font-size:18px;padding:4px 8px;cursor:pointer">−</button>
+          <div style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#fff" id="actual-reps-${i}">${activeWorkout.reps}</div>
+          <button onclick="adjSetVal('reps',${i},1)" style="background:transparent;border:none;color:#4CAF50;font-size:18px;padding:4px 8px;cursor:pointer">+</button>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;background:#0D0D0D;border-radius:8px;overflow:hidden">
+          <button onclick="adjSetVal('weight',${i},-0.5)" style="background:transparent;border:none;color:#4CAF50;font-size:18px;padding:4px 8px;cursor:pointer">−</button>
+          <div style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#4CAF50" id="actual-weight-${i}">${w}</div>
+          <button onclick="adjSetVal('weight',${i},0.5)" style="background:transparent;border:none;color:#4CAF50;font-size:18px;padding:4px 8px;cursor:pointer">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    // volgende keer
     document.getElementById('next-sets').textContent=activeWorkout.sets;
     document.getElementById('next-reps').textContent=activeWorkout.reps;
+    const avgW=Math.round(activeWorkout.weights.reduce((a,b)=>a+b,0)/activeWorkout.weights.length*10)/10;
     document.getElementById('next-weight').textContent=avgW+' kg';
     renderWorkout();
   }
 }
-function adjustActual(field,d){
-  const el=document.getElementById('actual-'+field);
-  el.textContent=Math.max(1,parseInt(el.textContent)+d);
-}
-function adjustActualWeight(d){
-  const el=document.getElementById('actual-weight');
+function adjSetVal(type,setIdx,d){
+  const id=`actual-${type}-${setIdx}`;
+  const el=document.getElementById(id);
   const cur=parseFloat(el.textContent)||0;
-  el.textContent=Math.max(0,Math.round((cur+d)*10)/10)+' kg';
+  if(type==='reps') el.textContent=Math.max(0,Math.round(cur+d));
+  else el.textContent=Math.max(0,Math.round((cur+d)*10)/10);
 }
 function adjustNext(field,d){
   const el=document.getElementById('next-'+field);
@@ -1081,7 +1075,7 @@ function adjustNextWeight(d){
   el.textContent=Math.max(0,Math.round((cur+d)*10)/10)+' kg';
 }
 function saveDoneAdjustments(){
-  // sla volgende keer op in de oefening
+  // sla volgende keer op
   const nextSets=parseInt(document.getElementById('next-sets').textContent)||activeWorkout.sets;
   const nextReps=parseInt(document.getElementById('next-reps').textContent)||activeWorkout.reps;
   const nextWeight=parseFloat(document.getElementById('next-weight').textContent)||0;
