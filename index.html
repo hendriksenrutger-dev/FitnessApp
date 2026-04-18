@@ -885,9 +885,23 @@ function setWeight(val){
 }
 function adjustWeight(d){setWeight(curWeight+d);}
 function setDone(){phase='rest';renderWorkout();}
+function playPing(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440,ctx.currentTime+0.3);
+    gain.gain.setValueAtTime(0.4,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.4);
+  }catch(e){}
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+}
 function startTimer(){
   clearInterval(timerInt); timerVal=activeWorkout.rest; tick();
-  timerInt=setInterval(()=>{timerVal--;tick();if(timerVal<=0){clearInterval(timerInt);advance();}},1000);
+  timerInt=setInterval(()=>{timerVal--;tick();if(timerVal<=0){clearInterval(timerInt);playPing();advance();}},1000);
 }
 function tick(){
   document.getElementById('rest-num').textContent=timerVal+'s';
