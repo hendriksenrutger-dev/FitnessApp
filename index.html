@@ -133,6 +133,7 @@
   <div id="S-home" class="screen">
     <div class="header">
       <div><div class="page-sub" id="home-greeting">Goedemorgen 👋</div><div class="page-title" id="home-name">Laten we trainen!</div></div>
+      <button onclick="nav('welcome')" style="background:#1A1A1A;border:1px solid #2a2a2a;border-radius:10px;padding:6px 12px;color:#1DB954;font-size:20px;cursor:pointer">🎵</button>
     </div>
     <div class="schema-tabs" id="schema-tabs"></div>
     <button onclick="openAddSchema()" style="width:100%;background:transparent;border:1px dashed #333;border-radius:12px;padding:8px;color:#555;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:14px">＋ Schema toevoegen</button>
@@ -538,14 +539,12 @@ function doneIcon(size=44){
 }
 
 function openSpotify(){
-  window.location.href='spotify:';
-  setTimeout(()=>{ window.open('https://open.spotify.com','_blank'); },500);
+  window.open('https://open.spotify.com','_blank');
 }
 function openPlaylist(){
   const url=localStorage.getItem('spotifyPlaylist');
   if(!url){alert('Vul eerst een Spotify playlist link in bij Profiel!');return;}
-  window.location.href=url.replace('https://open.spotify.com','spotify:').replace('/playlist/',':playlist:').replace('/track/',':track:');
-  setTimeout(()=>{ window.open(url,'_blank'); },500);
+  window.open(url,'_blank');
 }
 function showWelcome(){
   const name=localStorage.getItem('userName')||'';
