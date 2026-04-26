@@ -1019,14 +1019,59 @@ function playPing(){
   if(navigator.vibrate) navigator.vibrate([300,100,300,100,600]);
 }
 function startTimer(){
-  clearInterval(timerInt); timerVal=activeWorkout.rest; tick();
-  timerInt=setInterval(()=>{timerVal--;tick();if(timerVal<=0){clearInterval(timerInt);playPing();advance();}},1000);
+  clearInterval(timerInt);
+  const endTime=Date.now()+(activeWorkout.rest*1000);
+  localStorage.setItem('timerEnd', endTime);
+  localStorage.setItem('timerTotal', activeWorkout.rest);
+  tick();
+  timerInt=setInterval(()=>{
+    const remaining=Math.ceil((endTime-Date.now())/1000);
+    if(remaining<=0){
+      clearInterval(timerInt);
+      localStorage.removeItem('timerEnd');
+      playPing();
+      advance();
+    } else {
+      timerVal=remaining;
+      tick();
+    }
+  },250); // elke 250ms checken zodat hij snel herstelt na scherm unlock
 }
 function tick(){
-  document.getElementById('rest-num').textContent=timerVal+'s';
-  document.getElementById('rest-arc').style.strokeDashoffset=251-(timerVal/activeWorkout.rest)*251;
+  // herbereken altijd op basis van eindtijd als die beschikbaar is
+  const endTime=parseInt(localStorage.getItem('timerEnd')||'0');
+  const total=parseInt(localStorage.getItem('timerTotal')||activeWorkout?.rest||60);
+  if(endTime){
+    timerVal=Math.max(0,Math.ceil((endTime-Date.now())/1000));
+  }
+  const el=document.getElementById('rest-num');
+  const arc=document.getElementById('rest-arc');
+  if(el) el.textContent=timerVal+'s';
+  if(arc) arc.style.strokeDashoffset=251-(1-(timerVal/total))*251;
 }
-function skipRest(){clearInterval(timerInt);advance();}
+function skipRest(){
+  clearInterval(timerInt);
+  localStorage.removeItem('timerEnd');
+  advance();
+}
+
+// herstel timer als app terugkomt na scherm unlock
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && phase==='rest'){
+    const endTime=parseInt(localStorage.getItem('timerEnd')||'0');
+    if(!endTime) return;
+    const remaining=Math.ceil((endTime-Date.now())/1000);
+    if(remaining<=0){
+      clearInterval(timerInt);
+      localStorage.removeItem('timerEnd');
+      playPing();
+      advance();
+    } else {
+      timerVal=remaining;
+      tick();
+    }
+  }
+});
 function advance(){
   if(curSet<activeWorkout.sets){curSet++;phase='ready';renderWorkout();}
   else{
