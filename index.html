@@ -605,6 +605,7 @@ function openPlaylist(){
   window.open(url,'_blank');
 }
 function showWelcome(){
+  requestNotificationPermission();
   const name=localStorage.getItem('userName')||'';
   const h=new Date().getHours();
   const g=h<12?'Goedemorgen':h<18?'Goedemiddag':'Goedenavond';
@@ -998,6 +999,34 @@ function setWeight(val){
 }
 function adjustWeight(d){setWeight(curWeight+d);}
 function setDone(){phase='rest';renderWorkout();}
+function requestNotificationPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+
+function sendRestDoneNotification(){
+  if(!('serviceWorker' in navigator)) return;
+  if(Notification.permission!=='granted') return;
+  const setNum=curSet, totalSets=activeWorkout?.sets||0;
+  const nextSet=setNum<totalSets?setNum+1:null;
+  navigator.serviceWorker.ready.then(reg=>{
+    reg.showNotification('💪 Rust voorbij!',{
+      body: nextSet ? `Set ${nextSet} van ${totalSets} — tik om door te gaan` : 'Laatste set klaar! Goed gedaan 🎉',
+      icon: '/FitnessApp/icon.svg',
+      badge: '/FitnessApp/icon.svg',
+      vibrate: [300,100,300,100,600],
+      requireInteraction: true,
+      actions: nextSet ? [
+        {action:'set-klaar', title:'✓ SET KLAAR'}
+      ] : [
+        {action:'done', title:'🎉 Klaar!'}
+      ],
+      data: {action: nextSet ? 'set-klaar' : 'done'}
+    });
+  });
+}
+
 function playPing(){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -1023,6 +1052,8 @@ function startTimer(){
   const endTime=Date.now()+(activeWorkout.rest*1000);
   localStorage.setItem('timerEnd', endTime);
   localStorage.setItem('timerTotal', activeWorkout.rest);
+  localStorage.setItem('timerSet', curSet);
+  localStorage.setItem('timerWorkoutId', activeWorkout.id);
   tick();
   timerInt=setInterval(()=>{
     const remaining=Math.ceil((endTime-Date.now())/1000);
@@ -1030,12 +1061,13 @@ function startTimer(){
       clearInterval(timerInt);
       localStorage.removeItem('timerEnd');
       playPing();
+      sendRestDoneNotification();
       advance();
     } else {
       timerVal=remaining;
       tick();
     }
-  },250); // elke 250ms checken zodat hij snel herstelt na scherm unlock
+  },250);
 }
 function tick(){
   // herbereken altijd op basis van eindtijd als die beschikbaar is
@@ -1065,6 +1097,7 @@ document.addEventListener('visibilitychange',()=>{
       clearInterval(timerInt);
       localStorage.removeItem('timerEnd');
       playPing();
+      sendRestDoneNotification();
       advance();
     } else {
       timerVal=remaining;
@@ -1414,6 +1447,14 @@ function updateBMI(){
     bmrCard.style.display='none';
   }
 }
+
+// Luister naar "SET KLAAR" bericht van service worker (via vergrendelscherm notificatie)
+navigator.serviceWorker.addEventListener('message', e => {
+  if(e.data && e.data.type==='SET_KLAAR'){
+    if(phase==='ready') setDone();
+    else if(phase==='rest'){ skipRest(); }
+  }
+});
 
 // ── INIT ──────────────────────────────────────────────────
 nav('welcome');
