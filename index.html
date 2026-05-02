@@ -179,7 +179,7 @@
 
   <!-- WORKOUT -->
   <div id="S-workout" class="screen hidden">
-    <button class="back-btn" onclick="releaseWakeLock();nav('home')">← Terug</button>
+    <button class="back-btn" onclick="nav('home')">← Terug</button>
     <div class="workout-hero">
       <div class="hero-emoji" id="w-emoji"></div>
       <div class="hero-title" id="w-title"></div>
@@ -973,12 +973,6 @@ function saveExForm(){
 function startWorkout(id){
   activeWorkout=getEx().find(w=>w.id===id);
   curSet=1; phase='ready'; curWeight=activeWorkout.weights[0]||0;
-  // Wake lock activeren voor hele workout
-  if(navigator.wakeLock){
-    navigator.wakeLock.request('screen').then(lock=>{
-      window._wakeLock=lock;
-    }).catch(()=>{});
-  }
   nav('workout'); renderWorkout();
 }
 function renderWorkout(){
@@ -1005,7 +999,6 @@ function setWeight(val){
 }
 function adjustWeight(d){setWeight(curWeight+d);}
 function setDone(){
-  releaseWakeLock();
   phase='rest';
   renderWorkout();
 }
@@ -1092,13 +1085,9 @@ function tick(){
   if(el) el.textContent=timerVal+'s';
   if(arc) arc.style.strokeDashoffset=251-(1-(timerVal/total))*251;
 }
-function releaseWakeLock(){
-  if(window._wakeLock){window._wakeLock.release().catch(()=>{});window._wakeLock=null;}
-}
 function skipRest(){
   clearInterval(timerInt);
   localStorage.removeItem('timerEnd');
-  releaseWakeLock();
   advance();
 }
 
@@ -1167,7 +1156,6 @@ function adjustNextWeight(d){
   el.textContent=Math.max(0,Math.round((cur+d)*10)/10)+' kg';
 }
 function saveDoneAdjustments(){
-  releaseWakeLock();
   // sla volgende keer op
   const nextSets=parseInt(document.getElementById('next-sets').textContent)||activeWorkout.sets;
   const nextReps=parseInt(document.getElementById('next-reps').textContent)||activeWorkout.reps;
@@ -1466,7 +1454,6 @@ function updateBMI(){
 // Luister naar "SET KLAAR" bericht van service worker (via vergrendelscherm notificatie)
 navigator.serviceWorker.addEventListener('message', e => {
   if(e.data && e.data.type==='SET_KLAAR'){
-    releaseWakeLock();
     if(phase==='ready') setDone();
     else if(phase==='rest'){ clearInterval(timerInt); localStorage.removeItem('timerEnd'); advance(); }
   }
