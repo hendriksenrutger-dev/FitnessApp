@@ -179,7 +179,7 @@
 
   <!-- WORKOUT -->
   <div id="S-workout" class="screen hidden">
-    <button class="back-btn" onclick="nav('home')">← Terug</button>
+    <button class="back-btn" onclick="releaseWakeLock();nav('home')">← Terug</button>
     <div class="workout-hero">
       <div class="hero-emoji" id="w-emoji"></div>
       <div class="hero-title" id="w-title"></div>
@@ -307,12 +307,12 @@
       <div style="flex:1;background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid #2a2a2a">
         <div style="font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Sessies</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#FF6B35;line-height:1" id="s-sessions">0</div>
-        <div style="font-size:12px;color:#555;margin-top:4px">trainingen voltooid</div>
+        <div style="font-size:14px;color:#888;margin-top:4px">trainingen voltooid</div>
       </div>
       <div style="flex:1;background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid #2a2a2a">
         <div style="font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Calorieën</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#FF6B35;line-height:1" id="s-cal">0</div>
-        <div style="font-size:12px;color:#555;margin-top:4px">kcal verbrand totaal</div>
+        <div style="font-size:14px;color:#888;margin-top:4px">kcal verbrand totaal</div>
       </div>
     </div>
 
@@ -973,6 +973,12 @@ function saveExForm(){
 function startWorkout(id){
   activeWorkout=getEx().find(w=>w.id===id);
   curSet=1; phase='ready'; curWeight=activeWorkout.weights[0]||0;
+  // Wake lock activeren voor hele workout
+  if(navigator.wakeLock){
+    navigator.wakeLock.request('screen').then(lock=>{
+      window._wakeLock=lock;
+    }).catch(()=>{});
+  }
   nav('workout'); renderWorkout();
 }
 function renderWorkout(){
@@ -998,7 +1004,11 @@ function setWeight(val){
   if(idx>-1){ex[idx].weights[curSet-1]=curWeight;saveEx(ex);activeWorkout=ex[idx];}
 }
 function adjustWeight(d){setWeight(curWeight+d);}
-function setDone(){phase='rest';renderWorkout();}
+function setDone(){
+  releaseWakeLock();
+  phase='rest';
+  renderWorkout();
+}
 function requestNotificationPermission(){
   if('Notification' in window && Notification.permission==='default'){
     Notification.requestPermission();
@@ -1062,7 +1072,9 @@ function startTimer(){
       localStorage.removeItem('timerEnd');
       playPing();
       sendRestDoneNotification();
-      advance();
+      // NIET automatisch advance() - wachten op SET KLAAR
+      timerVal=0;
+      tick();
     } else {
       timerVal=remaining;
       tick();
@@ -1070,7 +1082,6 @@ function startTimer(){
   },250);
 }
 function tick(){
-  // herbereken altijd op basis van eindtijd als die beschikbaar is
   const endTime=parseInt(localStorage.getItem('timerEnd')||'0');
   const total=parseInt(localStorage.getItem('timerTotal')||activeWorkout?.rest||60);
   if(endTime){
@@ -1081,9 +1092,13 @@ function tick(){
   if(el) el.textContent=timerVal+'s';
   if(arc) arc.style.strokeDashoffset=251-(1-(timerVal/total))*251;
 }
+function releaseWakeLock(){
+  if(window._wakeLock){window._wakeLock.release().catch(()=>{});window._wakeLock=null;}
+}
 function skipRest(){
   clearInterval(timerInt);
   localStorage.removeItem('timerEnd');
+  releaseWakeLock();
   advance();
 }
 
@@ -1096,9 +1111,8 @@ document.addEventListener('visibilitychange',()=>{
     if(remaining<=0){
       clearInterval(timerInt);
       localStorage.removeItem('timerEnd');
-      playPing();
-      sendRestDoneNotification();
-      advance();
+      // timer al voorbij - toon 0 maar wacht op SET KLAAR
+      timerVal=0; tick();
     } else {
       timerVal=remaining;
       tick();
@@ -1153,6 +1167,7 @@ function adjustNextWeight(d){
   el.textContent=Math.max(0,Math.round((cur+d)*10)/10)+' kg';
 }
 function saveDoneAdjustments(){
+  releaseWakeLock();
   // sla volgende keer op
   const nextSets=parseInt(document.getElementById('next-sets').textContent)||activeWorkout.sets;
   const nextReps=parseInt(document.getElementById('next-reps').textContent)||activeWorkout.reps;
@@ -1451,8 +1466,9 @@ function updateBMI(){
 // Luister naar "SET KLAAR" bericht van service worker (via vergrendelscherm notificatie)
 navigator.serviceWorker.addEventListener('message', e => {
   if(e.data && e.data.type==='SET_KLAAR'){
+    releaseWakeLock();
     if(phase==='ready') setDone();
-    else if(phase==='rest'){ skipRest(); }
+    else if(phase==='rest'){ clearInterval(timerInt); localStorage.removeItem('timerEnd'); advance(); }
   }
 });
 
