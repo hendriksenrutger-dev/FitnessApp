@@ -436,7 +436,8 @@
     <input class="form-input" id="p-spotify" type="url" placeholder="https://open.spotify.com/playlist/..." oninput="localStorage.setItem('spotifyPlaylist',this.value)"/>
     <div style="font-size:12px;color:#555;margin-bottom:18px;margin-top:-14px">Plak hier je Spotify playlist link</div>
     <div class="info-card"><div class="info-lbl">Data opslag</div><div style="font-size:15px">Alleen op dit apparaat</div><div style="font-size:12px;color:#555;margin-top:3px">Jouw data wordt nooit gedeeld</div></div>
-    <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">🗑️ Alle lokale data wissen</button>
+    <button onclick="migreerNaarDB()" style="background:#3B9EFF18;border:1px solid #3B9EFF44;border-radius:14px;padding:14px;width:100%;color:#3B9EFF;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">☁️ Lokale data uploaden naar cloud</button>
+    <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">🗑️ Alle lokale data wissen</button>
     <button onclick="doLogout()" style="background:transparent;border:1px solid #333;border-radius:14px;padding:14px;width:100%;color:#888;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">🚪 Uitloggen</button>
   </div>
 
@@ -1687,6 +1688,24 @@ navigator.serviceWorker.addEventListener('message', e => {
     else if(phase==='rest'){ clearInterval(timerInt); localStorage.removeItem('timerEnd'); advance(); }
   }
 });
+
+async function migreerNaarDB(){
+  if(!currentUser){alert('Je bent niet ingelogd!');return;}
+  if(!confirm('Lokale data uploaden naar de cloud? Bestaande cloud data wordt overschreven.')) return;
+  try{
+    // Verwijder bestaande data
+    await sb.from('exercises').delete().eq('user_id',currentUser.id);
+    await sb.from('schemas').delete().eq('user_id',currentUser.id);
+    await sb.from('session_history').delete().eq('user_id',currentUser.id);
+    await sb.from('weight_log').delete().eq('user_id',currentUser.id);
+    await sb.from('cardio_log').delete().eq('user_id',currentUser.id);
+    // Upload alles opnieuw
+    await initNewUser();
+    alert('✅ Data succesvol geüpload naar de cloud!');
+  }catch(e){
+    alert('❌ Fout bij uploaden: '+e.message);
+  }
+}
 
 async function doLogout(){
   await sb.auth.signOut();
