@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="FitApp"/>
   <title>FitApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="manifest" href="manifest.json"/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
@@ -108,6 +109,32 @@
 </head>
 <body>
 <div id="app">
+
+  <!-- LOGIN SCHERM -->
+  <div id="S-login" class="screen" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:44px 32px">
+    <div style="font-size:64px;margin-bottom:16px">💪</div>
+    <div class="page-title" style="font-size:32px;margin-bottom:8px">FitApp</div>
+    <div style="font-size:14px;color:#666;margin-bottom:40px">Log in om je data te synchroniseren</div>
+
+    <div style="width:100%;margin-bottom:16px">
+      <div class="form-label">E-mailadres</div>
+      <input class="form-input" id="login-email" type="email" placeholder="jouw@email.com" style="margin-bottom:0"/>
+    </div>
+    <div style="width:100%;margin-bottom:24px">
+      <div class="form-label">Wachtwoord</div>
+      <input class="form-input" id="login-password" type="password" placeholder="••••••••" style="margin-bottom:0"/>
+    </div>
+
+    <div id="login-error" style="color:#FF3B3B;font-size:13px;margin-bottom:16px;display:none"></div>
+
+    <button onclick="doLogin()" style="background:#FF6B35;border:none;border-radius:16px;padding:16px;width:100%;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;margin-bottom:12px">
+      INLOGGEN
+    </button>
+    <button onclick="doRegister()" style="background:transparent;border:1px solid #333;border-radius:16px;padding:14px;width:100%;color:#888;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif">
+      Nieuw account aanmaken
+    </button>
+    <div style="font-size:12px;color:#555;margin-top:16px" id="login-loading" style="display:none">Bezig...</div>
+  </div>
 
   <!-- WELKOM SCHERM -->
   <div id="S-welcome" class="screen" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:44px 32px">
@@ -367,7 +394,7 @@
       <span style="font-size:32px">👤</span>
     </div>
     <label class="form-label">Naam</label>
-    <input class="form-input" id="p-name" type="text" placeholder="bijv. Rutger" oninput="localStorage.setItem('userName',this.value);updateGreeting()"/>
+    <input class="form-input" id="p-name" type="text" placeholder="bijv. Rutger" oninput="localStorage.setItem('userName',this.value);updateGreeting();saveProfileToDB()"/>
     <label class="form-label">Geslacht</label>
     <div style="display:flex;gap:10px;margin-bottom:18px">
       <button id="p-male" onclick="setGender('m')" style="flex:1;padding:12px;border-radius:12px;border:1px solid #2a2a2a;background:#1A1A1A;color:#aaa;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif">👨 Man</button>
@@ -409,7 +436,8 @@
     <input class="form-input" id="p-spotify" type="url" placeholder="https://open.spotify.com/playlist/..." oninput="localStorage.setItem('spotifyPlaylist',this.value)"/>
     <div style="font-size:12px;color:#555;margin-bottom:18px;margin-top:-14px">Plak hier je Spotify playlist link</div>
     <div class="info-card"><div class="info-lbl">Data opslag</div><div style="font-size:15px">Alleen op dit apparaat</div><div style="font-size:12px;color:#555;margin-top:3px">Jouw data wordt nooit gedeeld</div></div>
-    <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">🗑️ Alle data wissen</button>
+    <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">🗑️ Alle lokale data wissen</button>
+    <button onclick="doLogout()" style="background:transparent;border:1px solid #333;border-radius:14px;padding:14px;width:100%;color:#888;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">🚪 Uitloggen</button>
   </div>
 
   <!-- BOTTOM NAV -->
@@ -421,6 +449,143 @@
 </div>
 
 <script>
+// ── SUPABASE ──────────────────────────────────────────────
+const SUPABASE_URL='https://kegpsbtlfnqxrwiaeovc.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtlZ3BzYnRsZm5xeHJ3aWFlb3ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjY0MzEsImV4cCI6MjA5MjEwMjQzMX0.fIPhKYNaA8B1if5l3iPE7eXzSyR5gdO9c8GHtNOA6co';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null;
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  errEl.style.display='none';
+  if(!email||!password){errEl.textContent='Vul e-mail en wachtwoord in';errEl.style.display='block';return;}
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
+  currentUser=data.user;
+  await syncFromDB();
+  nav('welcome');
+}
+
+async function doRegister(){
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  errEl.style.display='none';
+  if(!email||!password){errEl.textContent='Vul e-mail en wachtwoord in';errEl.style.display='block';return;}
+  if(password.length<6){errEl.textContent='Wachtwoord minimaal 6 tekens';errEl.style.display='block';return;}
+  const {data,error}=await sb.auth.signUp({email,password});
+  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
+  currentUser=data.user;
+  await initNewUser();
+  nav('welcome');
+}
+
+async function initNewUser(){
+  // Sla standaard oefeningen en schema op voor nieuwe gebruiker
+  const exIds=[];
+  for(const ex of DEFAULT_EX){
+    const {data}=await sb.from('exercises').insert({
+      user_id:currentUser.id, name:ex.name, muscle:ex.muscle,
+      sets:ex.sets, reps:ex.reps, rest:ex.rest, weights:ex.weights, emoji:ex.emoji||'🏋️'
+    }).select().single();
+    if(data) exIds.push(data.id);
+  }
+  await sb.from('schemas').insert({
+    user_id:currentUser.id, name:'Full Body', description:'', exercise_ids:exIds
+  });
+}
+
+async function syncFromDB(){
+  if(!currentUser) return;
+  // Haal exercises op
+  const {data:exData}=await sb.from('exercises').select('*').eq('user_id',currentUser.id).order('sort_order');
+  if(exData&&exData.length>0){
+    const exercises=exData.map(e=>({id:e.id,name:e.name,muscle:e.muscle,sets:e.sets,reps:e.reps,rest:e.rest,weights:e.weights||[],emoji:e.emoji||'🏋️'}));
+    saveEx(exercises);
+  }
+  // Haal schemas op
+  const {data:schData}=await sb.from('schemas').select('*').eq('user_id',currentUser.id).order('sort_order');
+  if(schData&&schData.length>0){
+    const schemas=schData.map(s=>({id:s.id,name:s.name,desc:s.description||'',exerciseIds:s.exercise_ids||[]}));
+    saveSch(schemas);
+    if(!localStorage.getItem('activeSchemaId')) setActId(schemas[0].id);
+  }
+  // Haal sessie geschiedenis op
+  const {data:histData}=await sb.from('session_history').select('*').eq('user_id',currentUser.id).order('created_at');
+  if(histData) saveHist(histData.map(s=>({date:s.date,schemaName:s.schema_name,completed:s.completed,total:s.total,cal:s.cal,weights:s.weights||{}})));
+  // Haal gewicht log op
+  const {data:wData}=await sb.from('weight_log').select('*').eq('user_id',currentUser.id).order('date');
+  if(wData) saveWLog(wData.map(w=>({date:w.date,kg:parseFloat(w.kg)})));
+  // Haal cardio log op
+  const {data:cData}=await sb.from('cardio_log').select('*').eq('user_id',currentUser.id).order('date');
+  if(cData) saveCLog(cData.map(c=>({date:c.date,type:c.type,label:c.label,duration:c.duration,distance:c.distance,incline:c.incline,resistance:c.resistance,cal:c.cal})));
+  // Haal profiel op
+  const {data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  if(profile){
+    if(profile.name) localStorage.setItem('userName',profile.name);
+    if(profile.gender) localStorage.setItem('userGender',profile.gender);
+    if(profile.height) localStorage.setItem('userHeight',profile.height);
+    if(profile.weight) localStorage.setItem('userWeight',profile.weight);
+    if(profile.age) localStorage.setItem('userAge',profile.age);
+    if(profile.spotify_playlist) localStorage.setItem('spotifyPlaylist',profile.spotify_playlist);
+  }
+}
+
+async function syncToDB(){
+  if(!currentUser) return;
+  // Sla exercises op
+  const exercises=getEx();
+  for(const ex of exercises){
+    await sb.from('exercises').upsert({
+      id:typeof ex.id==='number'?undefined:ex.id,
+      user_id:currentUser.id, name:ex.name, muscle:ex.muscle,
+      sets:ex.sets, reps:ex.reps, rest:ex.rest, weights:ex.weights, emoji:ex.emoji||'🏋️'
+    },{onConflict:'id'});
+  }
+  // Sla schemas op
+  const schemas=getSch();
+  for(const s of schemas){
+    await sb.from('schemas').upsert({
+      id:typeof s.id==='number'?undefined:s.id,
+      user_id:currentUser.id, name:s.name, description:s.desc||'', exercise_ids:s.exerciseIds
+    },{onConflict:'id'});
+  }
+}
+
+async function saveSessionToDB(session){
+  if(!currentUser) return;
+  await sb.from('session_history').insert({
+    user_id:currentUser.id, date:session.date, schema_name:session.schemaName,
+    completed:session.completed, total:session.total, cal:session.cal, weights:session.weights||{}
+  });
+}
+
+async function saveWeightToDB(date,kg){
+  if(!currentUser) return;
+  await sb.from('weight_log').upsert({user_id:currentUser.id,date,kg},{onConflict:'user_id,date'});
+}
+
+async function saveCardioToDB(entry){
+  if(!currentUser) return;
+  await sb.from('cardio_log').insert({user_id:currentUser.id,...entry});
+}
+
+async function saveProfileToDB(){
+  if(!currentUser) return;
+  await sb.from('profiles').upsert({
+    id:currentUser.id,
+    name:localStorage.getItem('userName')||'',
+    gender:localStorage.getItem('userGender')||'',
+    height:parseInt(localStorage.getItem('userHeight'))||null,
+    weight:parseFloat(localStorage.getItem('userWeight'))||null,
+    age:parseInt(localStorage.getItem('userAge'))||null,
+    spotify_playlist:localStorage.getItem('spotifyPlaylist')||'',
+    updated_at:new Date().toISOString()
+  },{onConflict:'id'});
+}
+
 // ── DATA ─────────────────────────────────────────────────
 const DEFAULT_EX=[
   {id:1,name:'Lat Pull',           emoji:'🏋️',sets:3,reps:8, weights:[32,39,39],        rest:90,muscle:'Rug'},
@@ -471,7 +636,7 @@ let editMode=false, editingExId=null, editingSchemaId=null, selEmoji='🏋️';
 let activeWorkout=null, curSet=1, phase='ready', curWeight=0;
 let timerVal=0, timerInt=null;
 let activeCardioType='hardlopen';
-const SCREENS=['welcome','home','workout','edit','picker','schema','stats','chart','profile'];
+const SCREENS=['login','welcome','home','workout','edit','picker','schema','stats','chart','profile'];
 
 // ── SVG ICOONTJES ─────────────────────────────────────────
 const MUSCLE_COLOR={
@@ -711,8 +876,11 @@ function finishTraining(){
   const weights={};
   done.forEach(id=>{const ex=exercises.find(e=>e.id===id);if(ex)weights[id]=ex.weights[ex.weights.length-1]||ex.weights[0]||0;});
   const hist=getHist();
-  hist.push({date:new Date().toLocaleDateString('nl-NL'),schemaName:schema?schema.name:'Training',completed:done.length,total:schema?schema.exerciseIds.length:done.length,cal:done.length*45,weights});
-  saveHist(hist); saveDone([]); renderHome();
+  const session={date:new Date().toLocaleDateString('nl-NL'),schemaName:schema?schema.name:'Training',completed:done.length,total:schema?schema.exerciseIds.length:done.length,cal:done.length*45,weights};
+  hist.push(session);
+  saveHist(hist);
+  saveSessionToDB(session);
+  saveDone([]); renderHome();
 }
 
 function resetToday(){
@@ -1205,9 +1373,11 @@ function logCardio(){
   const res=cfg.res?parseFloat(document.getElementById('c-res').value)||0:0;
   const dist=cfg.dist?parseFloat(document.getElementById('c-dist').value)||null:null;
   const cal=Math.round((cfg.met+incl*0.15+res*0.2)*weight*(dur/60));
+  const entry={date:new Date().toLocaleDateString('nl-NL'),type:activeCardioType,label:cfg.label,duration:dur,distance:dist,incline:incl||null,resistance:res||null,cal};
   const log=getCLog();
-  log.push({date:new Date().toLocaleDateString('nl-NL'),type:activeCardioType,label:cfg.label,duration:dur,distance:dist,incline:incl||null,resistance:res||null,cal});
+  log.push(entry);
   saveCLog(log);
+  saveCardioToDB(entry);
   document.getElementById('c-dur').value='';
   document.getElementById('c-dist').value='';
   document.getElementById('c-incl').value='';
@@ -1306,6 +1476,7 @@ function logWeight(){
   const idx=log.findIndex(e=>e.date===today);
   if(idx>-1) log[idx].kg=val; else log.push({date:today,kg:val});
   saveWLog(log); localStorage.setItem('userWeight',val);
+  saveWeightToDB(today,val);
   document.getElementById('weight-input').value='';
   renderWeightChart();
 }
@@ -1459,8 +1630,24 @@ navigator.serviceWorker.addEventListener('message', e => {
   }
 });
 
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser=null;
+  localStorage.clear();
+  nav('login');
+}
+
 // ── INIT ──────────────────────────────────────────────────
-nav('welcome');
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    currentUser=session.user;
+    await syncFromDB();
+    nav('welcome');
+  } else {
+    nav('login');
+  }
+})();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
