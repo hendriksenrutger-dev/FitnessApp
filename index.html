@@ -900,10 +900,10 @@ function renderHome(){
       const c=muscleColor(w.muscle);
       return `<div class="e-card" data-id="${w.id}">
         <div class="drag-handle" data-drag="true">☰</div>
-        <div class="del-btn" onclick="removeFromSchema(${w.id})">🗑</div>
+        <div class="del-btn" onclick="removeFromSchema('${w.id}')">🗑</div>
         <div style="width:36px;height:36px;flex-shrink:0">${exerciseIcon(w.name,w.muscle,36)}</div>
         <div class="w-info" style="flex:1"><div class="w-name" style="color:${c}">${w.name}</div><div class="w-meta">${w.muscle} · ${w.sets}×${w.reps} · ${mn===mx?mn:mn+'–'+mx} kg</div></div>
-        <button class="edit-btn-sm" onclick="openEditEx(${w.id})">✏️</button>
+        <button class="edit-btn-sm" onclick="openEditEx('${w.id}')">✏️</button>
       </div>`;
     }).join('')
     +`<button class="add-card" onclick="openPicker()"><span style="font-size:20px">＋</span> Oefening toevoegen</button>`
@@ -913,7 +913,7 @@ function renderHome(){
     list.innerHTML=schEx.map(w=>{
       const isDone=done.map(String).includes(String(w.id)),mn=Math.min(...w.weights),mx=Math.max(...w.weights);
       const c=muscleColor(w.muscle);
-      return `<button class="w-card ${isDone?'done':''}" onclick="${isDone?'':('startWorkout('+w.id+')')}" ${isDone?'disabled':''}>
+      return `<button class="w-card ${isDone?'done':''}" onclick="${isDone?'':('startWorkout(\''+w.id+'\')')}" ${isDone?'disabled':''}>
         <div class="w-icon" style="background:transparent;padding:0">${isDone?doneIcon():exerciseIcon(w.name,w.muscle)}</div>
         <div class="w-info">
           <div class="w-name">${w.name}</div>
@@ -950,8 +950,8 @@ function resetToday(){
 function removeFromSchema(id){
   if(!confirm('Oefening uit dit schema verwijderen?')) return;
   const schemas=getSch(), activeId=getActId();
-  saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:s.exerciseIds.filter(x=>x!==id)}:s));
-  saveDone(getDone().filter(x=>x!==id)); renderHome();
+  saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:s.exerciseIds.filter(x=>String(x)!==String(id))}:s));
+  saveDone(getDone().filter(x=>String(x)!==String(id))); renderHome();
 }
 
 // ── DRAG ─────────────────────────────────────────────────
@@ -1153,7 +1153,7 @@ function addFromPicker(e){
 // ── EXERCISE FORM ─────────────────────────────────────────
 function openEditEx(id){
   editingExId=id;
-  const w=getEx().find(x=>x.id===id);
+  const w=getEx().find(x=>String(x.id)===String(id));
   document.getElementById('edit-title').textContent='Oefening bewerken';
   document.getElementById('f-name').value=w.name;
   document.getElementById('f-muscle').value=w.muscle;

@@ -1,4 +1,4 @@
-const CACHE = 'fitapp-v46';
+const CACHE = 'fitapp-v47';
 const ASSETS = ['/FitnessApp/','/FitnessApp/index.html','/FitnessApp/manifest.json','/FitnessApp/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
