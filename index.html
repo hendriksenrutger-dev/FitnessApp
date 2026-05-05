@@ -483,18 +483,76 @@ async function doRegister(){
 }
 
 async function initNewUser(){
-  // Sla standaard oefeningen en schema op voor nieuwe gebruiker
-  const exIds=[];
-  for(const ex of DEFAULT_EX){
-    const {data}=await sb.from('exercises').insert({
-      user_id:currentUser.id, name:ex.name, muscle:ex.muscle,
-      sets:ex.sets, reps:ex.reps, rest:ex.rest, weights:ex.weights, emoji:ex.emoji||'🏋️'
-    }).select().single();
-    if(data) exIds.push(data.id);
+  // Controleer of er lokale data is om te migreren
+  const localEx=getEx();
+  const localSch=getSch();
+  const hasLocalData=localEx&&localEx.length>0;
+
+  if(hasLocalData){
+    // Migreer bestaande data naar Supabase
+    const idMap={};
+    for(const ex of localEx){
+      const {data}=await sb.from('exercises').insert({
+        user_id:currentUser.id, name:ex.name, muscle:ex.muscle||'Overig',
+        sets:ex.sets||3, reps:ex.reps||10, rest:ex.rest||60,
+        weights:ex.weights||[], emoji:ex.emoji||'🏋️'
+      }).select().single();
+      if(data) idMap[ex.id]=data.id;
+    }
+    // Migreer schemas met nieuwe IDs
+    for(const s of localSch){
+      const newExIds=s.exerciseIds.map(id=>idMap[id]).filter(Boolean);
+      await sb.from('schemas').insert({
+        user_id:currentUser.id, name:s.name, description:s.desc||'',
+        exercise_ids:newExIds
+      });
+    }
+    // Migreer sessie geschiedenis
+    const hist=getHist();
+    for(const h of hist){
+      await sb.from('session_history').insert({
+        user_id:currentUser.id, date:h.date, schema_name:h.schemaName||'Training',
+        completed:h.completed||0, total:h.total||0, cal:h.cal||0, weights:h.weights||{}
+      });
+    }
+    // Migreer gewicht log
+    const wlog=getWLog();
+    for(const w of wlog){
+      await sb.from('weight_log').insert({user_id:currentUser.id, date:w.date, kg:w.kg});
+    }
+    // Migreer cardio log
+    const clog=getCLog();
+    for(const c of clog){
+      await sb.from('cardio_log').insert({
+        user_id:currentUser.id, date:c.date, type:c.type, label:c.label,
+        duration:c.duration, distance:c.distance, incline:c.incline,
+        resistance:c.resistance, cal:c.cal
+      });
+    }
+    // Migreer profiel
+    await sb.from('profiles').upsert({
+      id:currentUser.id,
+      name:localStorage.getItem('userName')||'',
+      gender:localStorage.getItem('userGender')||'',
+      height:parseInt(localStorage.getItem('userHeight'))||null,
+      weight:parseFloat(localStorage.getItem('userWeight'))||null,
+      age:parseInt(localStorage.getItem('userAge'))||null,
+      spotify_playlist:localStorage.getItem('spotifyPlaylist')||''
+    });
+  } else {
+    // Geen lokale data - laad standaard oefeningen
+    const exIds=[];
+    for(const ex of DEFAULT_EX){
+      const {data}=await sb.from('exercises').insert({
+        user_id:currentUser.id, name:ex.name, muscle:ex.muscle,
+        sets:ex.sets, reps:ex.reps, rest:ex.rest, weights:ex.weights, emoji:ex.emoji||'🏋️'
+      }).select().single();
+      if(data) exIds.push(data.id);
+    }
+    await sb.from('schemas').insert({
+      user_id:currentUser.id, name:'Full Body', description:'', exercise_ids:exIds
+    });
   }
-  await sb.from('schemas').insert({
-    user_id:currentUser.id, name:'Full Body', description:'', exercise_ids:exIds
-  });
 }
 
 async function syncFromDB(){
