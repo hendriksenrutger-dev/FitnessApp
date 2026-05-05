@@ -884,7 +884,7 @@ function renderHome(){
 
   const schema=schemas.find(s=>s.id===activeId)||schemas[0];
   if(!schema) return;
-  const schEx=schema.exerciseIds.map(id=>exercises.find(e=>e.id===id)).filter(Boolean);
+  const schEx=schema.exerciseIds.map(id=>exercises.find(e=>String(e.id)===String(id))).filter(Boolean);
   const doneCnt=done.filter(id=>schEx.some(e=>e.id===id)).length;
 
   document.getElementById('finish-btn').style.display=doneCnt>0?'block':'none';
@@ -911,7 +911,7 @@ function renderHome(){
     initDrag();
   } else {
     list.innerHTML=schEx.map(w=>{
-      const isDone=done.includes(w.id),mn=Math.min(...w.weights),mx=Math.max(...w.weights);
+      const isDone=done.map(String).includes(String(w.id)),mn=Math.min(...w.weights),mx=Math.max(...w.weights);
       const c=muscleColor(w.muscle);
       return `<button class="w-card ${isDone?'done':''}" onclick="${isDone?'':('startWorkout('+w.id+')')}" ${isDone?'disabled':''}>
         <div class="w-icon" style="background:transparent;padding:0">${isDone?doneIcon():exerciseIcon(w.name,w.muscle)}</div>
@@ -1198,7 +1198,8 @@ function saveExForm(){
 
 // ── WORKOUT ───────────────────────────────────────────────
 function startWorkout(id){
-  activeWorkout=getEx().find(w=>w.id===id);
+  activeWorkout=getEx().find(w=>String(w.id)===String(id));
+  if(!activeWorkout) return;
   curSet=1; phase='ready'; curWeight=activeWorkout.weights[0]||0;
   nav('workout'); renderWorkout();
 }
@@ -1221,7 +1222,7 @@ function renderWorkout(){
 function setWeight(val){
   curWeight=Math.max(0,Math.round(val*10)/10);
   document.getElementById('w-kg').value=curWeight;
-  const ex=getEx(), idx=ex.findIndex(w=>w.id===activeWorkout.id);
+  const ex=getEx(), idx=ex.findIndex(w=>String(w.id)===String(activeWorkout.id));
   if(idx>-1){ex[idx].weights[curSet-1]=curWeight;saveEx(ex);activeWorkout=ex[idx];}
 }
 function adjustWeight(d){setWeight(curWeight+d);}
@@ -1327,8 +1328,16 @@ document.addEventListener('visibilitychange',()=>{
     if(remaining<=0){
       clearInterval(timerInt);
       localStorage.removeItem('timerEnd');
-      // timer al voorbij - toon 0 maar wacht op SET KLAAR
+      // Timer voorbij — toon SET KLAAR direct, geen overslaan
       timerVal=0; tick();
+      // Vervang rust scherm met SET KLAAR knop
+      const restEl=document.getElementById('p-rest');
+      if(restEl){
+        restEl.innerHTML=`
+          <div class="rest-lbl">✅ Rust voorbij!</div>
+          <div style="font-size:14px;color:#666;margin-bottom:24px">Tik om door te gaan</div>
+          <button class="big-btn" onclick="clearInterval(timerInt);localStorage.removeItem('timerEnd');advance()">SET KLAAR ✓</button>`;
+      }
     } else {
       timerVal=remaining;
       tick();
@@ -1388,7 +1397,7 @@ function saveDoneAdjustments(){
   const nextReps=parseInt(document.getElementById('next-reps').textContent)||activeWorkout.reps;
   const nextWeight=parseFloat(document.getElementById('next-weight').textContent)||0;
   const exercises=getEx();
-  const idx=exercises.findIndex(e=>e.id===activeWorkout.id);
+  const idx=exercises.findIndex(e=>String(e.id)===String(activeWorkout.id));
   if(idx>-1){
     exercises[idx].sets=nextSets;
     exercises[idx].reps=nextReps;
