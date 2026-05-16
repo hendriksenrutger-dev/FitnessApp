@@ -1288,6 +1288,7 @@ function startTimer(){
       timerVal=0; tick();
       playPing();
       sendRestDoneNotification();
+      advance();
     } else {
       timerVal=remaining;
       tick();
@@ -1321,6 +1322,7 @@ document.addEventListener('visibilitychange',()=>{
       timerVal=0; tick();
       playPing();
       sendRestDoneNotification();
+      advance();
     } else {
       clearInterval(timerInt);
       timerVal=remaining;
@@ -1333,6 +1335,7 @@ document.addEventListener('visibilitychange',()=>{
           timerVal=0; tick();
           playPing();
           sendRestDoneNotification();
+          advance();
         } else {
           timerVal=rem; tick();
         }
