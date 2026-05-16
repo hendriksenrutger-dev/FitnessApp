@@ -1,4 +1,4 @@
-const CACHE = 'fitapp-v47';
+const CACHE = 'fitapp-v48';
 const ASSETS = ['/FitnessApp/','/FitnessApp/index.html','/FitnessApp/manifest.json','/FitnessApp/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
@@ -16,13 +16,9 @@ self.addEventListener('fetch', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
-    self.clients.matchAll({type:'window', includeUncontrolled:true}).then(clients=>{
-      if(clients.length>0){
-        clients[0].postMessage({type:'SET_KLAAR'});
-        clients[0].focus();
-      } else {
-        self.clients.openWindow('/FitnessApp/');
-      }
+    self.clients.matchAll({type:'window',includeUncontrolled:true}).then(clients=>{
+      if(clients.length>0) clients[0].focus();
+      else self.clients.openWindow('/FitnessApp/');
     })
   );
 });
