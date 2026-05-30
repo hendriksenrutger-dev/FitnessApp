@@ -436,6 +436,7 @@
     <input class="form-input" id="p-spotify" type="url" placeholder="https://open.spotify.com/playlist/..." oninput="localStorage.setItem('spotifyPlaylist',this.value)"/>
     <div style="font-size:12px;color:#555;margin-bottom:18px;margin-top:-14px">Plak hier je Spotify playlist link</div>
     <div class="info-card"><div class="info-lbl">Data opslag</div><div style="font-size:15px">Alleen op dit apparaat</div><div style="font-size:12px;color:#555;margin-top:3px">Jouw data wordt nooit gedeeld</div></div>
+    <button onclick="voegSplitSchemasToe()" style="background:#A78BFA18;border:1px solid #A78BFA44;border-radius:14px;padding:14px;width:100%;color:#A78BFA;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">💪 3 Split schema's toevoegen</button>
     <button onclick="migreerNaarDB()" style="background:#3B9EFF18;border:1px solid #3B9EFF44;border-radius:14px;padding:14px;width:100%;color:#3B9EFF;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">☁️ Lokale data uploaden naar cloud</button>
     <button onclick="if(confirm('Alle data wissen?')){localStorage.clear();location.reload()}" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:14px;padding:14px;width:100%;color:#FF3B3B;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">🗑️ Alle lokale data wissen</button>
     <button onclick="doLogout()" style="background:transparent;border:1px solid #333;border-radius:14px;padding:14px;width:100%;color:#888;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px">🚪 Uitloggen</button>
@@ -541,7 +542,48 @@ async function initNewUser(){
       spotify_playlist:localStorage.getItem('spotifyPlaylist')||''
     });
   } else {
-    // Geen lokale data - laad standaard oefeningen
+    // Geen lokale data - laad standaard oefeningen + 3 split schema's
+    const SPLIT_SCHEMAS=[
+      {
+        name:'Dag 1 — Borst & Triceps',
+        exercises:[
+          {name:'Chest Press Machine',muscle:'Borst',            sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+          {name:'Incline Bench Press', muscle:'Borst',            sets:3,reps:10,rest:90, weights:[0,0,0]},
+          {name:'Cable Fly',           muscle:'Borst',            sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Pec Deck',            muscle:'Borst',            sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Tricep Pushdown',     muscle:'Triceps',          sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Skull Crusher',       muscle:'Triceps',          sets:3,reps:10,rest:60, weights:[0,0,0]},
+          {name:'Dip (Triceps)',       muscle:'Triceps',          sets:3,reps:10,rest:90, weights:[0,0,0]},
+        ]
+      },
+      {
+        name:'Dag 2 — Rug & Biceps',
+        exercises:[
+          {name:'Lat Pulldown',         muscle:'Rug',              sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+          {name:'Seated Row',           muscle:'Rug & Biceps',     sets:3,reps:10,rest:90, weights:[0,0,0]},
+          {name:'One-arm Dumbbell Row', muscle:'Rug & Biceps',     sets:3,reps:10,rest:90, weights:[0,0,0]},
+          {name:'Face Pull',            muscle:'Rug',              sets:3,reps:15,rest:60, weights:[0,0,0]},
+          {name:'Bicep Curl',           muscle:'Biceps',           sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Hammer Curl',          muscle:'Biceps',           sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Preacher Curl',        muscle:'Biceps',           sets:3,reps:10,rest:60, weights:[0,0,0]},
+        ]
+      },
+      {
+        name:'Dag 3 — Schouders & Benen',
+        exercises:[
+          {name:'Shoulder Press',      muscle:'Schouders',        sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+          {name:'Arnold Press',        muscle:'Schouders',        sets:3,reps:10,rest:90, weights:[0,0,0]},
+          {name:'Lateral Raise',       muscle:'Zijkant Schouders',sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Shrugs',              muscle:'Trapezius',        sets:3,reps:12,rest:60, weights:[0,0,0]},
+          {name:'Squat',               muscle:'Benen',            sets:4,reps:8, rest:120,weights:[0,0,0,0]},
+          {name:'Leg Press',           muscle:'Benen',            sets:4,reps:10,rest:90, weights:[0,0,0,0]},
+          {name:'Romanian Deadlift',   muscle:'Benen & Billen',   sets:3,reps:10,rest:90, weights:[0,0,0]},
+          {name:'Calf Raise',          muscle:'Benen',            sets:4,reps:15,rest:45, weights:[0,0,0,0]},
+        ]
+      }
+    ];
+
+    // Full Body eerst
     const exIds=[];
     for(const ex of DEFAULT_EX){
       const {data}=await sb.from('exercises').insert({
@@ -553,6 +595,21 @@ async function initNewUser(){
     await sb.from('schemas').insert({
       user_id:currentUser.id, name:'Full Body', description:'', exercise_ids:exIds
     });
+
+    // 3 split schema's
+    for(const schema of SPLIT_SCHEMAS){
+      const splitExIds=[];
+      for(const ex of schema.exercises){
+        const {data}=await sb.from('exercises').insert({
+          user_id:currentUser.id, name:ex.name, muscle:ex.muscle,
+          sets:ex.sets, reps:ex.reps, rest:ex.rest, weights:ex.weights, emoji:'🏋️'
+        }).select().single();
+        if(data) splitExIds.push(data.id);
+      }
+      await sb.from('schemas').insert({
+        user_id:currentUser.id, name:schema.name, description:'', exercise_ids:splitExIds
+      });
+    }
   }
 }
 
@@ -947,11 +1004,17 @@ function resetToday(){
   saveDone([]); renderHome();
 }
 
-function removeFromSchema(id){
+async function removeFromSchema(id){
   if(!confirm('Oefening uit dit schema verwijderen?')) return;
   const schemas=getSch(), activeId=getActId();
-  saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:s.exerciseIds.filter(x=>String(x)!==String(id))}:s));
-  saveDone(getDone().filter(x=>String(x)!==String(id))); renderHome();
+  const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:s.exerciseIds.filter(x=>String(x)!==String(id))}:s);
+  saveSch(updated);
+  saveDone(getDone().filter(x=>String(x)!==String(id)));
+  if(currentUser){
+    const schema=updated.find(s=>s.id===activeId);
+    await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
+  }
+  renderHome();
 }
 
 // ── DRAG ─────────────────────────────────────────────────
@@ -1025,18 +1088,28 @@ function openEditSchema(id){
   document.getElementById('schema-del-btn').style.display=getSch().length>1?'block':'none';
   nav('schema');
 }
-function saveSchemaForm(){
+async function saveSchemaForm(){
   const name=document.getElementById('sf-name').value.trim();
   if(!name){alert('Vul een naam in');return;}
   const desc=document.getElementById('sf-desc').value.trim();
   let schemas=getSch();
-  if(editingSchemaIdForm) schemas=schemas.map(s=>s.id===editingSchemaIdForm?{...s,name,desc}:s);
-  else{const id=Date.now();schemas.push({id,name,desc,exerciseIds:[]});setActId(id);}
+  if(editingSchemaIdForm){
+    schemas=schemas.map(s=>s.id===editingSchemaIdForm?{...s,name,desc}:s);
+    if(currentUser) await sb.from('schemas').update({name,description:desc}).eq('id',editingSchemaIdForm).eq('user_id',currentUser.id);
+  } else {
+    if(currentUser){
+      const {data}=await sb.from('schemas').insert({user_id:currentUser.id,name,description:desc,exercise_ids:[]}).select().single();
+      if(data){schemas.push({id:data.id,name,desc,exerciseIds:[]});setActId(data.id);}
+    } else {
+      const id=Date.now();schemas.push({id,name,desc,exerciseIds:[]});setActId(id);
+    }
+  }
   saveSch(schemas); nav('home');
 }
-function deleteSchema(){
+async function deleteSchema(){
   const schemas=getSch(); if(schemas.length<=1){alert('Minimaal 1 schema vereist.');return;}
   if(!confirm('Schema verwijderen?')) return;
+  if(currentUser) await sb.from('schemas').delete().eq('id',editingSchemaIdForm).eq('user_id',currentUser.id);
   const updated=schemas.filter(s=>s.id!==editingSchemaIdForm);
   saveSch(updated); setActId(updated[0].id); nav('home');
 }
@@ -1139,14 +1212,28 @@ function pickerRow(e){
   </div>`;
 }
 
-function addFromPicker(e){
-  const exercises=getEx();
-  const newId=Date.now();
+async function addFromPicker(e){
   const weights=Array(e.sets).fill(0);
+  let newId=Date.now();
+  if(currentUser){
+    const {data}=await sb.from('exercises').insert({
+      user_id:currentUser.id,name:e.name,muscle:e.muscle,
+      sets:e.sets,reps:e.reps,rest:e.rest,weights,emoji:'🏋️'
+    }).select().single();
+    if(data) newId=data.id;
+  }
+  const exercises=getEx();
   exercises.push({id:newId,name:e.name,muscle:e.muscle,sets:e.sets,reps:e.reps,rest:e.rest,weights,emoji:'🏋️'});
   saveEx(exercises);
   const schemas=getSch(), activeId=getActId();
-  if(activeId!=='cardio') saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s));
+  if(activeId!=='cardio'){
+    const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
+    saveSch(updated);
+    if(currentUser){
+      const schema=updated.find(s=>s.id===activeId);
+      await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
+    }
+  }
   nav('home');
 }
 
@@ -1177,7 +1264,7 @@ function renderWeights(existing){
   const prev=existing||Array.from(document.querySelectorAll('.w-inp')).map(i=>parseFloat(i.value)||0);
   document.getElementById('weights-list').innerHTML=Array.from({length:sets},(_,i)=>`<div class="w-row"><div class="w-lbl">Set ${i+1}</div><input class="w-inp" type="number" min="0" step="0.1" value="${prev[i]!==undefined?prev[i]:(prev[0]||0)}"/></div>`).join('');
 }
-function saveExForm(){
+async function saveExForm(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){alert('Vul een naam in');return;}
   const sets=parseInt(document.getElementById('f-sets').value)||3;
@@ -1186,12 +1273,25 @@ function saveExForm(){
   const muscle=document.getElementById('f-muscle').value.trim()||'Overig';
   const weights=Array.from(document.querySelectorAll('.w-inp')).map(i=>parseFloat(i.value)||0);
   let exercises=getEx();
-  if(editingExId!==null) exercises=exercises.map(w=>w.id===editingExId?{...w,name,muscle,sets,reps,rest,weights,emoji:selEmoji}:w);
-  else{
-    const newId=Date.now();
-    exercises.push({id:newId,name,muscle,sets,reps,rest,weights,emoji:selEmoji});
+  if(editingExId!==null){
+    exercises=exercises.map(w=>String(w.id)===String(editingExId)?{...w,name,muscle,sets,reps,rest,weights}:w);
+    if(currentUser) await sb.from('exercises').update({name,muscle,sets,reps,rest,weights}).eq('id',editingExId).eq('user_id',currentUser.id);
+  } else {
+    let newId=Date.now();
+    if(currentUser){
+      const {data}=await sb.from('exercises').insert({user_id:currentUser.id,name,muscle,sets,reps,rest,weights,emoji:'🏋️'}).select().single();
+      if(data) newId=data.id;
+    }
+    exercises.push({id:newId,name,muscle,sets,reps,rest,weights,emoji:'🏋️'});
     const schemas=getSch(), activeId=getActId();
-    if(activeId!=='cardio') saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s));
+    if(activeId!=='cardio'){
+      const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
+      saveSch(updated);
+      if(currentUser){
+        const schema=updated.find(s=>s.id===activeId);
+        await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
+      }
+    }
   }
   saveEx(exercises); nav('home');
 }
@@ -1686,6 +1786,63 @@ function updateBMI(){
     document.getElementById('bmr-note').textContent=`Licht actief: ~${Math.round(bmr*1.375)} kcal · Matig actief: ~${Math.round(bmr*1.55)} kcal`;
   } else {
     bmrCard.style.display='none';
+  }
+}
+
+async function voegSplitSchemasToe(){
+  if(!currentUser){alert('Je bent niet ingelogd!');return;}
+  if(!confirm('3 split schema\'s toevoegen aan je account? Bestaande schema\'s blijven staan.')) return;
+
+  const SPLIT=[
+    {name:'Dag 1 — Borst & Triceps',exercises:[
+      {name:'Chest Press Machine',muscle:'Borst',            sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+      {name:'Incline Bench Press', muscle:'Borst',            sets:3,reps:10,rest:90, weights:[0,0,0]},
+      {name:'Cable Fly',           muscle:'Borst',            sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Pec Deck',            muscle:'Borst',            sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Tricep Pushdown',     muscle:'Triceps',          sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Skull Crusher',       muscle:'Triceps',          sets:3,reps:10,rest:60, weights:[0,0,0]},
+      {name:'Dip (Triceps)',       muscle:'Triceps',          sets:3,reps:10,rest:90, weights:[0,0,0]},
+    ]},
+    {name:'Dag 2 — Rug & Biceps',exercises:[
+      {name:'Lat Pulldown',         muscle:'Rug',              sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+      {name:'Seated Row',           muscle:'Rug & Biceps',     sets:3,reps:10,rest:90, weights:[0,0,0]},
+      {name:'One-arm Dumbbell Row', muscle:'Rug & Biceps',     sets:3,reps:10,rest:90, weights:[0,0,0]},
+      {name:'Face Pull',            muscle:'Rug',              sets:3,reps:15,rest:60, weights:[0,0,0]},
+      {name:'Bicep Curl',           muscle:'Biceps',           sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Hammer Curl',          muscle:'Biceps',           sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Preacher Curl',        muscle:'Biceps',           sets:3,reps:10,rest:60, weights:[0,0,0]},
+    ]},
+    {name:'Dag 3 — Schouders & Benen',exercises:[
+      {name:'Shoulder Press',      muscle:'Schouders',        sets:4,reps:8, rest:90, weights:[0,0,0,0]},
+      {name:'Arnold Press',        muscle:'Schouders',        sets:3,reps:10,rest:90, weights:[0,0,0]},
+      {name:'Lateral Raise',       muscle:'Zijkant Schouders',sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Shrugs',              muscle:'Trapezius',        sets:3,reps:12,rest:60, weights:[0,0,0]},
+      {name:'Squat',               muscle:'Benen',            sets:4,reps:8, rest:120,weights:[0,0,0,0]},
+      {name:'Leg Press',           muscle:'Benen',            sets:4,reps:10,rest:90, weights:[0,0,0,0]},
+      {name:'Romanian Deadlift',   muscle:'Benen & Billen',   sets:3,reps:10,rest:90, weights:[0,0,0]},
+      {name:'Calf Raise',          muscle:'Benen',            sets:4,reps:15,rest:45, weights:[0,0,0,0]},
+    ]},
+  ];
+
+  try{
+    for(const schema of SPLIT){
+      const splitExIds=[];
+      for(const ex of schema.exercises){
+        const {data}=await sb.from('exercises').insert({
+          user_id:currentUser.id,name:ex.name,muscle:ex.muscle,
+          sets:ex.sets,reps:ex.reps,rest:ex.rest,weights:ex.weights,emoji:'🏋️'
+        }).select().single();
+        if(data) splitExIds.push(data.id);
+      }
+      await sb.from('schemas').insert({
+        user_id:currentUser.id,name:schema.name,description:'',exercise_ids:splitExIds
+      });
+    }
+    await syncFromDB();
+    alert('✅ 3 split schema\'s toegevoegd!');
+    nav('home');
+  }catch(e){
+    alert('❌ Fout: '+e.message);
   }
 }
 
