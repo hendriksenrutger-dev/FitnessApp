@@ -1,4 +1,4 @@
-const CACHE = 'fitapp-v50';
+const CACHE = 'fitapp-v51';
 const ASSETS = ['/FitnessApp/','/FitnessApp/index.html','/FitnessApp/manifest.json','/FitnessApp/icon.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
@@ -11,7 +11,15 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 self.addEventListener('fetch', e => {
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  // Altijd netwerk eerst proberen, dan pas cache als fallback
+  e.respondWith(
+    fetch(e.request).then(response => {
+      // Sla nieuwe versie op in cache
+      const clone = response.clone();
+      caches.open(CACHE).then(c => c.put(e.request, clone));
+      return response;
+    }).catch(() => caches.match(e.request))
+  );
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
