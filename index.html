@@ -729,7 +729,7 @@ const getEx=()=>JSON.parse(localStorage.getItem('exercises')||JSON.stringify(DEF
 const saveEx=e=>localStorage.setItem('exercises',JSON.stringify(e));
 const getSch=()=>JSON.parse(localStorage.getItem('schemas')||JSON.stringify(DEFAULT_SCHEMAS));
 const saveSch=s=>localStorage.setItem('schemas',JSON.stringify(s));
-const getActId=()=>{const v=localStorage.getItem('activeSchemaId');return v==='cardio'?'cardio':parseInt(v||'1');};
+const getActId=()=>{const v=localStorage.getItem('activeSchemaId');return v||'cardio';};
 const setActId=id=>localStorage.setItem('activeSchemaId',String(id));
 const getDone=()=>JSON.parse(localStorage.getItem('completedToday')||'[]');
 const saveDone=c=>localStorage.setItem('completedToday',JSON.stringify(c));
@@ -942,10 +942,10 @@ function renderHome(){
 
   if(isCardio){ renderCardioLog(); calcCardio(); return; }
 
-  const schema=schemas.find(s=>s.id===activeId)||schemas[0];
+  const schema=schemas.find(s=>String(s.id)===String(activeId))||schemas[0];
   if(!schema) return;
   const schEx=schema.exerciseIds.map(id=>exercises.find(e=>String(e.id)===String(id))).filter(Boolean);
-  const doneCnt=done.filter(id=>schEx.some(e=>e.id===id)).length;
+  const doneCnt=done.filter(id=>schEx.some(e=>String(e.id)===String(id))).length;
 
   document.getElementById('finish-btn').style.display=doneCnt>0?'block':'none';
   document.getElementById('active-schema-name').textContent=schema.name;
@@ -991,9 +991,9 @@ function toggleEdit(){editMode=!editMode;renderHome();}
 
 function finishTraining(){
   const done=getDone(); if(done.length===0) return;
-  const exercises=getEx(), schemas=getSch(), schema=schemas.find(s=>s.id===getActId());
+  const exercises=getEx(), schemas=getSch(), schema=schemas.find(s=>String(s.id)===String(getActId()));
   const weights={};
-  done.forEach(id=>{const ex=exercises.find(e=>e.id===id);if(ex)weights[id]=ex.weights[ex.weights.length-1]||ex.weights[0]||0;});
+  done.forEach(id=>{const ex=exercises.find(e=>String(e.id)===String(id));if(ex)weights[id]=ex.weights[ex.weights.length-1]||ex.weights[0]||0;});
   const hist=getHist();
   const session={date:new Date().toLocaleDateString('nl-NL'),schemaName:schema?schema.name:'Training',completed:done.length,total:schema?schema.exerciseIds.length:done.length,cal:done.length*45,weights};
   hist.push(session);
@@ -1010,11 +1010,11 @@ function resetToday(){
 async function removeFromSchema(id){
   if(!confirm('Oefening uit dit schema verwijderen?')) return;
   const schemas=getSch(), activeId=getActId();
-  const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:s.exerciseIds.filter(x=>String(x)!==String(id))}:s);
+  const updated=schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:s.exerciseIds.filter(x=>String(x)!==String(id))}:s);
   saveSch(updated);
   saveDone(getDone().filter(x=>String(x)!==String(id)));
   if(currentUser){
-    const schema=updated.find(s=>s.id===activeId);
+    const schema=updated.find(s=>String(s.id)===String(activeId));
     await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
   }
   renderHome();
@@ -1064,7 +1064,7 @@ function initDrag(){
       dragEl.classList.remove('dragging'); dragEl.style.transform='';
       const order=cards().map(c=>parseInt(c.dataset.id));
       const schemas=getSch(), activeId=getActId();
-      saveSch(schemas.map(s=>s.id===activeId?{...s,exerciseIds:order}:s));
+      saveSch(schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:order}:s));
       dragEl=null; isDragging=false;
     });
   }
@@ -1098,7 +1098,7 @@ async function saveSchemaForm(){
   const desc=document.getElementById('sf-desc').value.trim();
   let schemas=getSch();
   if(editingSchemaIdForm){
-    schemas=schemas.map(s=>s.id===editingSchemaIdForm?{...s,name,desc}:s);
+    schemas=schemas.map(s=>String(s.id)===String(editingSchemaIdForm)?{...s,name,desc}:s);
     if(currentUser) await sb.from('schemas').update({name,description:desc}).eq('id',editingSchemaIdForm).eq('user_id',currentUser.id);
   } else {
     if(currentUser){
@@ -1231,10 +1231,10 @@ async function addFromPicker(e){
   saveEx(exercises);
   const schemas=getSch(), activeId=getActId();
   if(activeId!=='cardio'){
-    const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
+    const updated=schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
     saveSch(updated);
     if(currentUser){
-      const schema=updated.find(s=>s.id===activeId);
+      const schema=updated.find(s=>String(s.id)===String(activeId));
       await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
     }
   }
@@ -1289,10 +1289,10 @@ async function saveExForm(){
     exercises.push({id:newId,name,muscle,sets,reps,rest,weights,emoji:'🏋️'});
     const schemas=getSch(), activeId=getActId();
     if(activeId!=='cardio'){
-      const updated=schemas.map(s=>s.id===activeId?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
+      const updated=schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:[...s.exerciseIds,newId]}:s);
       saveSch(updated);
       if(currentUser){
-        const schema=updated.find(s=>s.id===activeId);
+        const schema=updated.find(s=>String(s.id)===String(activeId));
         await sb.from('schemas').update({exercise_ids:schema.exerciseIds}).eq('id',activeId).eq('user_id',currentUser.id);
       }
     }
@@ -1624,7 +1624,7 @@ function renderStats(){
   // vandaag
   document.getElementById('s-list').innerHTML=done.length===0
     ?'<div style="color:#555;font-size:14px;padding:8px 0">Nog niets afgerond vandaag.</div>'
-    :done.map(id=>{const w=exercises.find(x=>x.id===id);if(!w)return'';return `<div class="stat-item"><span style="font-size:22px">${w.emoji}</span><div style="flex:1"><div style="font-weight:600">${w.name}</div><div style="font-size:12px;color:#666">${w.muscle}</div></div><span style="color:#4CAF50">✓</span></div>`;}).join('');
+    :done.map(id=>{const w=exercises.find(x=>String(x.id)===String(id));if(!w)return'';return `<div class="stat-item"><span style="font-size:22px">${w.emoji}</span><div style="flex:1"><div style="font-weight:600">${w.name}</div><div style="font-size:12px;color:#666">${w.muscle}</div></div><span style="color:#4CAF50">✓</span></div>`;}).join('');
 
   // geschiedenis
   document.getElementById('s-history').innerHTML=hist.length===0
@@ -1693,7 +1693,7 @@ function drawLineChart(ctx,W,H,kgs,labels,color){
 
 // ── CHART ─────────────────────────────────────────────────
 function showChart(workoutId){
-  const exercises=getEx(), w=exercises.find(x=>x.id===workoutId), hist=getHist();
+  const exercises=getEx(), w=exercises.find(x=>String(x.id)===String(workoutId)), hist=getHist();
   const points=hist.filter(s=>s.weights&&s.weights[workoutId]!==undefined).map(s=>({date:s.date,kg:s.weights[workoutId]}));
   document.getElementById('chart-name').textContent=w.emoji+' '+w.name;
   document.getElementById('chart-sub').textContent=w.muscle+' · gewicht laatste set per sessie';
