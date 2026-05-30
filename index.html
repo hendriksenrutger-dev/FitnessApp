@@ -937,7 +937,7 @@ function renderHome(){
 
   // tabs
   document.getElementById('schema-tabs').innerHTML=
-    schemas.map(s=>`<button class="schema-tab ${s.id===activeId?'active':''}" onclick="switchSchema(${s.id})">${s.name}</button>`).join('')
+    schemas.map(s=>`<button class="schema-tab ${String(s.id)===String(activeId)?'active':''}" onclick="switchSchema('${s.id}')">${s.name}</button>`).join('')
     +`<button class="schema-tab ${isCardio?'active':''}" onclick="switchSchema('cardio')">🏃 Cardio</button>`;
 
   if(isCardio){ renderCardioLog(); calcCardio(); return; }
@@ -967,7 +967,7 @@ function renderHome(){
       </div>`;
     }).join('')
     +`<button class="add-card" onclick="openPicker()"><span style="font-size:20px">＋</span> Oefening toevoegen</button>`
-    +`<button class="add-card" style="margin-top:6px;border-color:#FF6B3544;color:#FF6B3588" onclick="openEditSchema(${schema.id})">⚙️ Schema bewerken / verwijderen</button>`;
+    +`<button class="add-card" style="margin-top:6px;border-color:#FF6B3544;color:#FF6B3588" onclick="openEditSchema('${schema.id}')">⚙️ Schema bewerken / verwijderen</button>`;
     initDrag();
   } else {
     list.innerHTML=schEx.map(w=>{
@@ -1084,7 +1084,8 @@ function openAddSchema(){
 }
 function openEditSchema(id){
   editingSchemaIdForm=id;
-  const s=getSch().find(x=>x.id===id);
+  const s=getSch().find(x=>String(x.id)===String(id));
+  if(!s) return;
   document.getElementById('schema-title').textContent='Schema bewerken';
   document.getElementById('sf-name').value=s.name;
   document.getElementById('sf-desc').value=s.desc||'';
