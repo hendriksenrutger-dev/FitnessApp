@@ -1058,13 +1058,17 @@ function initDrag(){
       });
     },{passive:false});
 
-    handle.addEventListener('touchend',()=>{
+    handle.addEventListener('touchend',async()=>{
       clearTimeout(longPressTimer);
       if(!isDragging||!dragEl){isDragging=false;dragEl=null;return;}
       dragEl.classList.remove('dragging'); dragEl.style.transform='';
-      const order=cards().map(c=>parseInt(c.dataset.id));
+      const order=cards().map(c=>c.dataset.id); // strings, geen parseInt
       const schemas=getSch(), activeId=getActId();
-      saveSch(schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:order}:s));
+      const updated=schemas.map(s=>String(s.id)===String(activeId)?{...s,exerciseIds:order}:s);
+      saveSch(updated);
+      if(currentUser){
+        await sb.from('schemas').update({exercise_ids:order}).eq('id',activeId).eq('user_id',currentUser.id);
+      }
       dragEl=null; isDragging=false;
     });
   }
