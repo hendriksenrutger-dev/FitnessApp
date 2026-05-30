@@ -616,17 +616,20 @@ async function initNewUser(){
 async function syncFromDB(){
   if(!currentUser) return;
   // Haal exercises op
-  const {data:exData}=await sb.from('exercises').select('*').eq('user_id',currentUser.id).order('sort_order');
+  const {data:exData,error:exErr}=await sb.from('exercises').select('*').eq('user_id',currentUser.id);
   if(exData&&exData.length>0){
-    const exercises=exData.map(e=>({id:e.id,name:e.name,muscle:e.muscle,sets:e.sets,reps:e.reps,rest:e.rest,weights:e.weights||[],emoji:e.emoji||'🏋️'}));
+    const exercises=exData.map(e=>({id:e.id,name:e.name,muscle:e.muscle||'Overig',sets:e.sets||3,reps:e.reps||10,rest:e.rest||60,weights:e.weights||[],emoji:e.emoji||'🏋️'}));
     saveEx(exercises);
   }
   // Haal schemas op
-  const {data:schData}=await sb.from('schemas').select('*').eq('user_id',currentUser.id).order('sort_order');
+  const {data:schData}=await sb.from('schemas').select('*').eq('user_id',currentUser.id);
   if(schData&&schData.length>0){
     const schemas=schData.map(s=>({id:s.id,name:s.name,desc:s.description||'',exerciseIds:s.exercise_ids||[]}));
     saveSch(schemas);
-    if(!localStorage.getItem('activeSchemaId')) setActId(schemas[0].id);
+    // Zet altijd een geldig actief schema
+    const activeId=localStorage.getItem('activeSchemaId');
+    const stillExists=activeId&&activeId!=='cardio'&&schemas.some(s=>String(s.id)===String(activeId));
+    if(!stillExists) setActId(schemas[0].id);
   }
   // Haal sessie geschiedenis op
   const {data:histData}=await sb.from('session_history').select('*').eq('user_id',currentUser.id).order('created_at');
@@ -1873,12 +1876,17 @@ async function doLogout(){
 
 // ── INIT ──────────────────────────────────────────────────
 (async()=>{
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){
-    currentUser=session.user;
-    await syncFromDB();
-    nav('welcome');
-  } else {
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){
+      currentUser=session.user;
+      await syncFromDB();
+      nav('welcome');
+    } else {
+      nav('login');
+    }
+  } catch(e){
+    // Supabase fout - toon loginscherm
     nav('login');
   }
 })();
