@@ -633,7 +633,7 @@ async function syncFromDB(){
   }
   // Haal sessie geschiedenis op
   const {data:histData}=await sb.from('session_history').select('*').eq('user_id',currentUser.id).order('created_at');
-  if(histData) saveHist(histData.map(s=>({date:s.date,schemaName:s.schema_name,completed:s.completed,total:s.total,cal:s.cal,weights:s.weights||{}})));
+  if(histData) saveHist(histData.map(s=>({id:s.id,date:s.date,schemaName:s.schema_name,completed:s.completed,total:s.total,cal:s.cal,weights:s.weights||{}})));
   // Haal gewicht log op
   const {data:wData}=await sb.from('weight_log').select('*').eq('user_id',currentUser.id).order('date');
   if(wData) saveWLog(wData.map(w=>({date:w.date,kg:parseFloat(w.kg)})));
@@ -675,10 +675,16 @@ async function syncToDB(){
 
 async function saveSessionToDB(session){
   if(!currentUser) return;
-  await sb.from('session_history').insert({
+  const {data}=await sb.from('session_history').insert({
     user_id:currentUser.id, date:session.date, schema_name:session.schemaName,
     completed:session.completed, total:session.total, cal:session.cal, weights:session.weights||{}
-  });
+  }).select().single();
+  // Sla DB id op in lokale history voor later verwijderen
+  if(data){
+    const hist=getHist();
+    const idx=hist.findIndex(s=>s.date===session.date&&s.schemaName===session.schemaName);
+    if(idx>-1){hist[idx].id=data.id;saveHist(hist);}
+  }
 }
 
 async function saveWeightToDB(date,kg){
@@ -1331,7 +1337,16 @@ function setWeight(val){
   curWeight=Math.max(0,Math.round(val*10)/10);
   document.getElementById('w-kg').value=curWeight;
   const ex=getEx(), idx=ex.findIndex(w=>String(w.id)===String(activeWorkout.id));
-  if(idx>-1){ex[idx].weights[curSet-1]=curWeight;saveEx(ex);activeWorkout=ex[idx];}
+  if(idx>-1){
+    ex[idx].weights[curSet-1]=curWeight;
+    saveEx(ex);
+    activeWorkout=ex[idx];
+    // Supabase update (debounced)
+    clearTimeout(window._weightTimer);
+    window._weightTimer=setTimeout(()=>{
+      if(currentUser) sb.from('exercises').update({weights:ex[idx].weights}).eq('id',activeWorkout.id).eq('user_id',currentUser.id);
+    },1500);
+  }
 }
 function adjustWeight(d){setWeight(curWeight+d);}
 function setDone(){
@@ -1498,8 +1513,7 @@ function adjustNextWeight(d){
   const cur=parseFloat(el.textContent)||0;
   el.textContent=Math.max(0,Math.round((cur+d)*10)/10)+' kg';
 }
-function saveDoneAdjustments(){
-  // sla volgende keer op
+async function saveDoneAdjustments(){
   const nextSets=parseInt(document.getElementById('next-sets').textContent)||activeWorkout.sets;
   const nextReps=parseInt(document.getElementById('next-reps').textContent)||activeWorkout.reps;
   const nextWeight=parseFloat(document.getElementById('next-weight').textContent)||0;
@@ -1510,6 +1524,11 @@ function saveDoneAdjustments(){
     exercises[idx].reps=nextReps;
     exercises[idx].weights=Array(nextSets).fill(nextWeight);
     saveEx(exercises);
+    if(currentUser){
+      await sb.from('exercises').update({
+        sets:nextSets, reps:nextReps, weights:Array(nextSets).fill(nextWeight)
+      }).eq('id',activeWorkout.id).eq('user_id',currentUser.id);
+    }
   }
   nav('home');
 }
@@ -1633,13 +1652,31 @@ function renderStats(){
   // geschiedenis
   document.getElementById('s-history').innerHTML=hist.length===0
     ?'<div style="color:#555;font-size:14px;padding:8px 0">Sluit je eerste training af met ✓ Afsluiten.</div>'
-    :[...hist].reverse().map(s=>`<div class="stat-item"><span style="font-size:22px">📅</span><div style="flex:1"><div style="font-weight:600">${s.date}</div><div style="font-size:12px;color:#666">${s.schemaName||'Training'} · ${s.completed}/${s.total} oefeningen · ${s.cal} kcal</div></div><span style="color:#FF6B35;font-family:'Bebas Neue',sans-serif;font-size:16px">${Math.round(s.completed/s.total*100)}%</span></div>`).join('');
+    :[...hist].reverse().map((s,i)=>{
+      const realIdx=hist.length-1-i;
+      const pct=s.total>0?Math.round(s.completed/s.total*100):0;
+      return `<div class="stat-item" style="position:relative">
+        <span style="font-size:22px">📅</span>
+        <div style="flex:1">
+          <div style="font-weight:600">${s.date}</div>
+          <div style="font-size:12px;color:#666">${s.schemaName||'Training'} · ${s.completed}/${s.total} oefeningen · ${s.cal} kcal</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:#FF6B35;font-family:'Bebas Neue',sans-serif;font-size:16px">${pct}%</span>
+          <button onclick="deleteSession(${realIdx})" style="background:#FF3B3B18;border:1px solid #FF3B3B44;border-radius:8px;padding:4px 10px;color:#FF3B3B;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
 
   // oefeningen
   document.getElementById('s-all').innerHTML=exercises.map(w=>{
-    const isDone=done.includes(w.id),mn=Math.min(...w.weights),mx=Math.max(...w.weights);
-    const hasData=hist.some(s=>s.weights&&s.weights[w.id]!==undefined);
-    return `<div class="stat-item" onclick="showChart(${w.id})" style="cursor:pointer"><span style="font-size:22px">${w.emoji}</span><div style="flex:1"><div style="font-weight:600">${w.name}</div><div style="font-size:12px;color:#666">${w.sets}×${w.reps} · ${mn===mx?mn:mn+'–'+mx} kg</div></div><div style="text-align:right">${isDone?'<div style="color:#4CAF50;font-size:11px;margin-bottom:2px">Klaar!</div>':''}<span style="color:${hasData?'#FF6B35':'#333'};font-size:16px">${hasData?'📈':'–'}</span></div></div>`;
+    const isDone=done.map(String).includes(String(w.id)),mn=Math.min(...w.weights),mx=Math.max(...w.weights);
+    const hasData=hist.some(s=>s.weights&&s.weights[String(w.id)]!==undefined);
+    return `<div class="stat-item" onclick="showChart('${w.id}')" style="cursor:pointer">
+      <span style="font-size:22px">${w.emoji}</span>
+      <div style="flex:1"><div style="font-weight:600">${w.name}</div><div style="font-size:12px;color:#666">${w.sets}×${w.reps} · ${mn===mx?mn:mn+'–'+mx} kg</div></div>
+      <div style="text-align:right">${isDone?'<div style="color:#4CAF50;font-size:11px;margin-bottom:2px">Klaar!</div>':''}<span style="color:${hasData?'#FF6B35':'#333'};font-size:16px">${hasData?'📈':'–'}</span></div>
+    </div>`;
   }).join('');
 }
 
@@ -1696,6 +1733,18 @@ function drawLineChart(ctx,W,H,kgs,labels,color){
 }
 
 // ── CHART ─────────────────────────────────────────────────
+async function deleteSession(idx){
+  if(!confirm('Sessie verwijderen?')) return;
+  const hist=getHist();
+  const session=hist[idx];
+  hist.splice(idx,1);
+  saveHist(hist);
+  if(currentUser&&session.id){
+    await sb.from('session_history').delete().eq('id',session.id).eq('user_id',currentUser.id);
+  }
+  renderStats();
+}
+
 function showChart(workoutId){
   const exercises=getEx(), w=exercises.find(x=>String(x.id)===String(workoutId)), hist=getHist();
   const points=hist.filter(s=>s.weights&&s.weights[workoutId]!==undefined).map(s=>({date:s.date,kg:s.weights[workoutId]}));
